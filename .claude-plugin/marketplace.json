@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "chriscole",
+  "description": "Chris Cole's personal Claude Code skills",
+  "owner": {
+    "name": "Chris Cole"
+  },
+  "plugins": [
+    {
+      "name": "pr-review",
+      "description": "Machine facts first, then the repo's own rules, then one risk-first reading of the diff, then a skeptic per finding.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Chris Cole"
+      },
+      "source": "./plugins/pr-review",
+      "category": "engineering",
+      "keywords": ["code-review", "pr", "review"]
+    }
+  ]
+}
