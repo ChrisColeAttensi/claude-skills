@@ -1,8 +1,0 @@
-{
-  "name": "pr-review",
-  "description": "The pr-review skill plus the two subagents it spawns (pr-review-finder, pr-review-verifier).",
-  "version": "1.0.0",
-  "author": {
-    "name": "Chris Cole"
-  }
-}

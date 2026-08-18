@@ -10,34 +10,44 @@ Private repo — installing needs a `git` that can clone it (the `gh` credential
 
 ```
 /plugin marketplace add ChrisColeAttensi/claude-skills
-/plugin install pr-review@chriscole
+/plugin install chriscole-skills@chriscole
 ```
 
-Then restart Claude Code. `/pr-review` and the two subagents it spawns are available everywhere,
-in every repo.
+Then restart Claude Code. `/chriscole-skills:pr-review` and the two subagents it spawns are
+available everywhere, in every repo.
 
-To pick up later changes: `/plugin update pr-review@chriscole`.
+To pick up later changes: `/plugin update chriscole-skills@chriscole`.
 
-## Plugins
+## Layout
 
-| Plugin | Contents |
+One plugin, `chriscole-skills`, holding everything. Skills are namespaced by **plugin** name, not
+marketplace name, so a skill here is invoked as `chriscole-skills:<skill>`. That is also why new
+skills go inside this plugin rather than beside it: adding one needs no new install on any machine.
+
+| Path | Contents |
 |---|---|
-| `pr-review` | The `pr-review` skill (`skills/pr-review/`) plus the `pr-review-finder` and `pr-review-verifier` subagents it spawns (`agents/`). All three move together — the skill is broken without the agents. |
+| `plugins/chriscole-skills/skills/pr-review/` | The `pr-review` skill |
+| `plugins/chriscole-skills/agents/` | `pr-review-finder`, `pr-review-verifier` — the subagents pr-review spawns. They move with the skill; it is broken without them. |
 
 ## Editing a skill
 
-Edit here, commit, push. On each machine, `/plugin update` pulls it.
+Edit here, bump `version` in **both** `plugin.json` and the marketplace entry (they must agree, and
+without a bump nobody sees the change), commit, push. On each machine,
+`claude plugin update chriscole-skills@chriscole`.
 
 Do **not** also keep a copy in `~/.claude/skills/` — two definitions of the same skill name
-collide. If a machine has the old hand-installed copy, delete
-`~/.claude/skills/pr-review/` and `~/.claude/agents/pr-review-{finder,verifier}.md` after
-installing the plugin.
+collide. If a machine has an old hand-installed copy, delete it after installing the plugin.
 
-## Adding another skill
+## Adding a skill
 
-1. `plugins/<name>/.claude-plugin/plugin.json` — name, description, version, author.
-2. Skills go in `plugins/<name>/skills/<skill-name>/SKILL.md`, agents in `plugins/<name>/agents/`.
-3. Add an entry to the `plugins` array in `.claude-plugin/marketplace.json`.
+Drop it in `plugins/chriscole-skills/skills/<name>/SKILL.md`, agents in
+`plugins/chriscole-skills/agents/`, bump the version in both manifests, push.
 
-An existing plugin can hold several skills; a new plugin is for things you'd want to install
-independently.
+A separate plugin is only worth it for something you'd want to install or disable on its own; it
+gets its own namespace prefix and its own entry in `.claude-plugin/marketplace.json`.
+
+## Renames
+
+`renames` in `marketplace.json` maps a former plugin name to its current one so installed machines
+migrate themselves. `pr-review` → `chriscole-skills` is there from the v1.0.0 naming, which
+stuttered as `pr-review:pr-review`.
