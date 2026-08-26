@@ -180,11 +180,11 @@ Then apply the verdicts, and this is not negotiable — a refuted finding does n
 
 - **confirmed** → it goes in the report, with the skeptic's sentence as the evidence.
 - **refuted** → dropped. Count it.
-- **unsettled** → a separate section, named as unsettled, with what would settle it.
+- **unsettled** → the report's "Needs your decision" section, with what would settle it.
 
 Where a skeptic returns a `CORRECTION`, take it: it read the code more closely than the finder did.
 
-Above about 12 candidates, verify the highest-consequence 12 and **say in the report which ones went unverified**. A silent cap reads as coverage you did not have.
+Above about 12 candidates, verify the highest-consequence 12 and **say in the report which ones went unverified**, in one line under the verdict. A silent cap reads as coverage you did not have, and this is the one piece of method the reader has to see.
 
 ### 7. Rule on intent, then report
 
@@ -198,43 +198,42 @@ Judge against the verbatim block, not your Goal sentence — the paraphrase is w
 
 Then write the report in **ASD-STE100 Simplified Technical English**: one idea per sentence, 20 words at most, active voice, present tense. Use the repo's own vocabulary (`CONTEXT.md`) and define any term it omits, in one clause, on first use.
 
+**The report answers one question: can this merge?** Lead with the answer. Then list only what someone has to act on. A reader who does everything the report says has a mergeable PR, and nothing in the report exists that they cannot act on.
+
 ```
-## Context
+## <Approve> or <Request changes> — <one sentence saying why>
 
-Reviewed <N> commits since <fixed-point>, <files> files. <how: inline | one finder | n finders>.
-Build <passed|failed>, tests <passed|failed|not run>. <K> findings block the merge.
+<N> commits since <fixed-point>, <F> files. Build <passed|failed>, tests <passed|failed|not run>.
 
-**Intent:** <the goal sentence>
+## Change before merge (<n>)
 
-## Blocking (<n>)
+**1. <title>**
+`path:line`
 
-### <title>
+<what is wrong, one sentence>
+<what breaks, and when, one sentence>
 
-- **Where:** `path:line`
-- **Problem:** <one sentence>
-- **Breaks:** <what, and when>
-- **Fix:** <one sentence>
-- **Checked:** <the skeptic's sentence> — or `repo rule: <the rule>` for a tripwire, or `build` for a machine finding
-- **PR says:** "<the declaring sentence>" — <why it still stands>   ← only when declared
+→ **Fix:** <one sentence>
+→ **PR says:** "<the declaring sentence>" — <why it still stands>   ← only when declared
 
-## Unsettled (<n>)
+## Needs your decision (<n>)
 
-Could not be confirmed or refuted from the code alone.
+Neither confirmed nor refuted from the code alone.
 
-- `path:line` — <claim> — settle it by <what would settle it>
-
-## Not reported
-
-<a> claims were refuted on inspection. <b> were declared in the PR description. <c> are already in the thread. <d> observations had no nameable consequence.
-
-- `path:line` — <claim, one clause> — refuted: <the skeptic's sentence>
+- `path:line` — <the question> — settle it by <what would settle it>
 ```
 
-List every refuted claim on its own line, with the sentence that killed it. A refutation is the one judgement in this review that nobody can see afterwards, and it deletes a finding permanently. One line each makes it checkable.
+Omit any heading whose list is empty. **Approve** when nothing has to change before merge; say what backs it in the same sentence — build green, tests green, tripwires clear. That is a stronger statement than an empty list, and it is the honest one.
 
-Omit any heading whose list is empty, and any count that is zero.
+Nothing else goes in the report. No counts of what was dropped, no refuted claims, no observations without a consequence, no account of the method. The reader wants the verdict and the work.
 
-Nothing blocking is a real result — say it plainly, and say what backs it: build green, tests green, N tripwires clear, M claims refuted. That is a much stronger statement than an empty list, and it is the honest one.
+**Write the discarded half to a file, and say where it is in one line at the end.** A refutation deletes a finding permanently, and it is the one judgement in the review nobody can see afterwards — so it has to survive somewhere, just not in front of the reader:
+
+```bash
+<scratch>/pr-<n>-discarded.md
+```
+
+One line each: the claim, and the sentence that killed it. Refuted claims, findings dropped as declared intent, findings already in the thread, and the finders' dropped-observation counts. End the report with `Discarded reasoning: <path>` and nothing more.
 
 ### 8. Fix or comment
 
@@ -253,7 +252,7 @@ Where the fix **lands** is a separate question, answered after the user picks �
 
 **On fix** — one finding at a time, run the checks, report per finding what changed. Anything left alone goes into the comment with the reason.
 
-**On comment** — one bullet block per finding, same Simplified Technical English. Open with one sentence naming the fixed point and the method. Close with the not-reported counts, because a review that says what it discarded is a review the author can trust. Quote the author back to themselves on any declared finding and say why it still stands. Show the full draft, then ask before posting.
+**On comment** — one bullet block per finding, same Simplified Technical English, same shape as the report: the verdict first, then only what the author has to act on. Open with one sentence naming the fixed point. Quote the author back to themselves on any declared finding and say why it still stands. Nothing about what was discarded — that file is for us, not for the PR thread. Show the full draft, then ask before posting.
 
 ```bash
 gh pr comment <number> --body-file <file>
