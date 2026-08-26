@@ -33,6 +33,14 @@ Skim: renames, formatting, mechanical churn. Ignore entirely: lockfiles, snapsho
 
 Read the file at HEAD, not only the hunk, whenever a hunk's correctness depends on code the diff does not show. A diff shows what moved; the file shows what it now means.
 
+## Say what you opened, and why
+
+Your patch is already written to a file. Read it once. Do not re-derive it with `git diff` variants.
+
+Beyond the patch and the files it touches, every file you open must appear in `COVERAGE` with the question it answered. Not a count, a list: "read `video-helper.ts` — does the MP4 guard run before the metadata read?" A file you cannot write that sentence for is a file you did not need.
+
+This is the stopping rule. When you are opening files you cannot justify in one clause, you have stopped finding defects and started touring the repo.
+
 ## Do not duplicate the machine
 
 Your prompt carries the results of the build, the analyzers, the tests, and CI. Those are facts. Do not re-derive them, do not report a warning the compiler already reported, and do not guess at whether something compiles. Spend your attention on what a compiler cannot see: wrong behaviour, wrong intent, lost data.

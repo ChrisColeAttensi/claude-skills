@@ -11,13 +11,19 @@ That leaves two hard problems, and they need opposite treatments:
 - **Missing a real defect** is a reading problem. It is solved by reading well, risk-first, once — not by reading repeatedly. Three identical readings share their blind spots.
 - **Inventing a defect** is a confidence problem. It is solved by making each finding survive an attempt to refute it. Refuting one claim needs one hunk; re-deriving it needs the whole diff. That asymmetry is the whole design.
 
-So: **one finder, and a skeptic per finding.** A clean PR costs almost nothing, because cost scales with how many findings there are, not with how big the change is.
+So: **finders split by area, and a skeptic per finding.** A clean PR costs little, because the expensive half — verification — scales with how many findings there are.
+
+Measured on one 14-file PR, against a single-finder run of the same diff: three finders cut the critical path from 23.6 minutes to 10.0, and found six confirmed defects against three. That cost about 1.4x the tokens. Speed and recall are what the split buys; it does not also make the review cheaper, and the per-review token bill goes up.
 
 One severity survives: **blocking**. A finding either has to change before this merges, or it does not belong in the report. Everything else is noise wearing a severity label, and the finder is told to drop it rather than rank it.
 
 ## Process
 
 Steps 1 to 4 are cheap and run in the main session. Spend the budget on 5 and 6.
+
+Issue their commands in parallel wherever one does not need the last one's answer. Every `gh` call in step 1, every grep in step 4, is independent.
+
+Do not expect this of the agents in steps 5 and 6, and do not bother instructing them: measured over 87 finder tool calls under an explicit batching rule, not one was batched. Parallelism you want is parallelism you arrange yourself, by splitting the work across agents.
 
 ### 1. Resolve the target, and check whether this is worth agents at all
 
@@ -40,8 +46,15 @@ Three dots, so you see what the branch adds and not what landed on the base mean
 **Then pick a size.** This is the difference between a review that costs pennies and one that costs pounds:
 
 - **Under ~5 files and ~150 changed lines** — no agents. Read the diff yourself, apply steps 2 to 4, and write the report. A skeptic pass on your own findings is still worth it if you found more than one thing.
-- **Normal** — one finder, one skeptic per finding. The default.
-- **Over ~40 files, or the diff spans unrelated areas** — one finder per area, still one skeptic per finding. Split by area, never by "run it again".
+- **Anything larger** — split the diff into 2 to 4 areas, one finder each, spawned in a single message. Still one skeptic per finding. Split by area, never by "run it again".
+
+One finder reading a whole PR is the slowest thing in this review by an order of magnitude. Splitting it is the single change that fixes that: measured, 22.6 minutes of finding became 8.4.
+
+It costs more, and the cost is worth naming. Three finders do not divide the reading — each still reads the siblings it needs to judge its own files, so turns go up rather than down. Expect roughly 1.4x the tokens for the split, and more again if the extra findings pull in extra skeptics. You are buying latency and recall, not economy.
+
+Prefer three areas over two when the diff has three coherent parts.
+
+An area is a set of files that can be judged together: a route and its components, a store and its callers, the tests for both. Never split a file across areas, and never split a caller from the thing it calls.
 
 Say which path you took, in one clause, in the report.
 
@@ -110,13 +123,21 @@ Also assemble the **standards digest** while you are in those docs: the handful 
 
 ### 5. Find
 
-Spawn `pr-review-finder`. One for a normal PR; one per area for a large one, in a single message.
+Spawn one `pr-review-finder` per area, all in a single message. Only a diff small enough for step 1's inline path gets no finder at all.
+
+First write each area's patch to its own scratch file, in one message:
+
+```bash
+git diff <fixed-point>...HEAD -- <area paths> > <scratch>/area-<name>.diff
+```
+
+Hand each finder its path. An agent given a file spends no turns rediscovering which `git diff` invocation it wanted, and every finder in the review then reads the same bytes. Do not read these files into the main session.
 
 The agent definition holds the finder's contract — the bar, the risk order, the schema. The prompt supplies what is specific to this change:
 
 > Review the diff from `<fixed-point>` to `HEAD`, in `<repo path>`.
 >
-> `git diff <fixed-point>...HEAD -- <paths for your area, or omit>`
+> Your area's patch is already written to `<scratch>/area-<name>.diff`. Read it there. The files it touches are yours; read any of them at HEAD.
 >
 > **Already answered by the machine — do not re-derive, do not report:**
 > ```
@@ -139,7 +160,7 @@ Read the `COVERAGE` block in every return. If a finder ignored something that ca
 
 ### 6. Verify
 
-Every candidate finding gets one `pr-review-verifier`, spawned in parallel in a single message. This is the filter that replaces agreement, and it is cheap because each skeptic reads one hunk rather than the diff.
+Every candidate finding gets one `pr-review-verifier`, and **all of them go in a single message**. Spawning them in twos and threes across turns pays the full latency of the slowest one, several times over, and buys nothing. This is the filter that replaces agreement, and it is cheap because each skeptic reads one hunk rather than the diff.
 
 Each prompt carries **one** claim and nothing else — no other findings, no vote counts, no hint that anyone believes it:
 
@@ -205,7 +226,11 @@ Could not be confirmed or refuted from the code alone.
 ## Not reported
 
 <a> claims were refuted on inspection. <b> were declared in the PR description. <c> are already in the thread. <d> observations had no nameable consequence.
+
+- `path:line` — <claim, one clause> — refuted: <the skeptic's sentence>
 ```
+
+List every refuted claim on its own line, with the sentence that killed it. A refutation is the one judgement in this review that nobody can see afterwards, and it deletes a finding permanently. One line each makes it checkable.
 
 Omit any heading whose list is empty, and any count that is zero.
 

@@ -28,6 +28,7 @@ skills go inside this plugin rather than beside it: adding one needs no new inst
 |---|---|
 | `plugins/chriscole-skills/skills/pr-review/` | The `pr-review` skill |
 | `plugins/chriscole-skills/agents/` | `pr-review-finder`, `pr-review-verifier` — the subagents pr-review spawns. They move with the skill; it is broken without them. |
+| `scripts/review-stats.py` | Cost and latency of one `/pr-review` run, read back from its session transcript. Per-agent turns, tokens and minutes. |
 
 ## Editing a skill
 

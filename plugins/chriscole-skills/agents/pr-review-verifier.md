@@ -29,6 +29,10 @@ Reserve **unsettled** for a claim you can neither demonstrate nor break because 
 
 Verify the claim you were given. Do not review the surrounding code, do not add findings of your own, and do not widen the claim to a version you can confirm. If the claim is wrong but something adjacent is wrong instead, refute the claim and say so in one sentence.
 
+## Few turns
+
+The hunk is in your prompt. Read the file at HEAD, the callers, and the test. Most claims settle in under ten reads. If you are still reading past that and cannot demonstrate the consequence, that is your answer: refuted.
+
 ## Return exactly this
 
 Your final text is the return value. No preamble.
