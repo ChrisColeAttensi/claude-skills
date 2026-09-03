@@ -58,13 +58,17 @@ An area is a set of files that can be judged together: a route and its component
 
 Say which path you took, in one clause, in the report.
 
-**Review forward, not from scratch.** If this PR was reviewed before, review only what has landed since:
+**Review the whole PR, every commit, unless you were told otherwise.** The fixed point is the PR's base — `baseRefName`, or the merge-base for a bare branch — and the review covers every commit sitting on it. Not the head commit, not the files the user happened to name in passing, not only what moved since you last looked. A reader takes "Approve" to mean the whole change, so read the whole change.
+
+Narrow it only when the user asks for that in words: "just the new commits", "only since my last review", "only the store". Then say the narrowing in the verdict line, so nobody reads a partial review as a full one.
+
+An incremental re-review is the usual narrowing, and the last review's endpoint is on record:
 
 ```bash
 git config --local --get pr-review.last-<pr-number>   # empty on a first review
 ```
 
-Use that SHA as the fixed point instead, and say so in the report. Write it back at the end of step 7. A re-review after a push should cost a fraction of the first one.
+Use that SHA as the fixed point **when the user asked for the increment**, and say so in the report. Step 7 writes the value back either way, so the option stays open for next time.
 
 ### 2. Collect the machine's answers
 
@@ -184,6 +188,8 @@ Then apply the verdicts, and this is not negotiable — a refuted finding does n
 
 Where a skeptic returns a `CORRECTION`, take it: it read the code more closely than the finder did.
 
+Findings the finder marked `adjacent` go through a skeptic like any other — a wrong claim about old code is still a wrong claim, and the user is going to decide what to do about it. Their marking changes where they are reported, not whether they are checked.
+
 Above about 12 candidates, verify the highest-consequence 12 and **say in the report which ones went unverified**, in one line under the verdict. A silent cap reads as coverage you did not have, and this is the one piece of method the reader has to see.
 
 ### 7. Rule on intent, then report
@@ -193,6 +199,17 @@ Before writing, take each confirmed finding back to the **Stated intent** block 
 - **Declared and settled** → drop it. Deferred to a named follow-up, an accepted trade-off, a deliberate breaking change. Telling an author that their decision is a bug is the fastest way to make them stop reading. Count it.
 - **Declared but still wrong** → keep it, and quote the declaring sentence next to your reasoning. Intent does not make a defect safe.
 - **Not declared** → keep it. Most land here; silence is not consent.
+
+**Then separate this PR's defects from the ones that want a PR of their own.** Two questions, and a finding is adjacent only when both answers are yes:
+
+- **Was it already there?** The defect reads the same at the fixed point. The finder marks this; `git show <fixed-point>:<path>` settles an argument.
+- **Does this PR still work with it?** The new code does its job in spite of it. Nothing here waits on that fix.
+
+Both yes, and the honest home for it is its own PR: it is a separate change, with a separate reason, and it does not belong in the diff the author is asking you to approve.
+
+The second question is the one that does the work. A defect can predate the branch and still block this merge — when a new call site is the first thing to reach the old bug, or the feature cannot work until it is fixed, this PR has made it live. Report that under **Change before merge**, and say the code is older than the branch.
+
+Adjacent findings do not move the verdict — a PR that sits next to an older bug is still mergeable. They go in their own section, so the user can choose: fold it in here, or raise it as its own piece of work.
 
 Judge against the verbatim block, not your Goal sentence — the paraphrase is where declarations get lost. And a declaration has to actually name the behaviour: "refactors the picker" does not declare a dropped null check inside the picker.
 
@@ -221,11 +238,19 @@ Then write the report in **ASD-STE100 Simplified Technical English**: one idea p
 Neither confirmed nor refuted from the code alone.
 
 - `path:line` — <the question> — settle it by <what would settle it>
+
+## Worth its own PR (<n>)
+
+Pre-existing, and this change works without them. None of it blocks the merge.
+
+- `path:line` — <what is wrong, one sentence> — <what breaks, and when> — present since <before this branch | commit>
 ```
 
-Omit any heading whose list is empty. **Approve** when nothing has to change before merge; say what backs it in the same sentence — build green, tests green, tripwires clear. That is a stronger statement than an empty list, and it is the honest one.
+Omit any heading whose list is empty. A **Worth its own PR** list does not hold back an approve. **Approve** when nothing this PR caused has to change before merge; say what backs it in the same sentence — build green, tests green, tripwires clear. That is a stronger statement than an empty list, and it is the honest one.
 
 Nothing else goes in the report. No counts of what was dropped, no refuted claims, no observations without a consequence, no account of the method. The reader wants the verdict and the work.
+
+A finding in that section clears the same bar as any other: name what breaks, and when. It is for defects the reading turned up, not for the observations the bar already rejected.
 
 **Write the discarded half to a file, and say where it is in one line at the end.** A refutation deletes a finding permanently, and it is the one judgement in the review nobody can see afterwards — so it has to survive somewhere, just not in front of the reader:
 
@@ -246,7 +271,9 @@ With small findings, a comment is ceremony wrapped around work we could just do.
 
 Both yes, fixing wins. Otherwise comment: a finding that needs the author's decision, or a fix that reshapes the change.
 
-Recommend one in a sentence, with the reason. Then ask: fix these now, post the comment, or fix and post a short note?
+**Worth-its-own-PR findings sit outside this decision.** Each one is the user's call: fold it into this branch, or raise it as its own work. Leave them out of the fix batch and the PR comment until the user picks them — a fix to code this PR did not touch grows the diff the author has to defend.
+
+Recommend one in a sentence, with the reason. Then ask: fix these now, post the comment, or fix and post a short note? Ask about the nearby list separately, and name the tracker if the repo has one.
 
 Where the fix **lands** is a separate question, answered after the user picks — never a reason not to do the work. Editing and running checks is local and reversible on any branch. Push when the branch takes our push; otherwise offer `git format-patch`, a branch to pull, or a diff in the comment. Ask before pushing to a branch that is not ours.
 
