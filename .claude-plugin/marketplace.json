@@ -11,8 +11,8 @@
   "plugins": [
     {
       "name": "chriscole-skills",
-      "description": "Personal skills: pr-review (machine facts first, then the repo's own rules, then one risk-first reading of the diff, then a skeptic per finding).",
-      "version": "1.4.0",
+      "description": "Personal skills: pr-review (machine facts first, then the repo's own rules and a per-repo review profile, then one risk-first reading of the diff, then a skeptic per finding).",
+      "version": "1.5.0",
       "author": {
         "name": "Chris Cole"
       },
