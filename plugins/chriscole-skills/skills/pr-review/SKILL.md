@@ -138,7 +138,7 @@ An incremental re-review is the usual narrowing, and the last review's endpoint 
 git config --local --get pr-review.last-<pr-number>   # empty on a first review
 ```
 
-Use that SHA as the fixed point **when the user asked for the increment**, and say so in the report. Step 7 writes the value back either way, so the option stays open for next time.
+Use that SHA as the fixed point **when the user asked for the increment**, and say so in the report. Step 8 writes the value back either way, so the option stays open for next time.
 
 ### 2. Collect the machine's answers
 
@@ -194,6 +194,8 @@ The repo has already written down which mistakes are expensive here. Checking th
 Read [reference/tripwires.md](./reference/tripwires.md) for how to derive them and what makes one worth keeping. Check the ones this diff can trip, then carry any that tripped straight to the report: deterministic checks have nothing for a skeptic to refute.
 
 Also assemble the **standards digest** while you are in those docs: the handful of rules that this diff could plausibly breach, quoted, with their source. The finder gets this pasted in so it never goes exploring for documentation. One digest, read once, instead of every agent rediscovering `CLAUDE.md`.
+
+Assemble it **whole**, covering the diff. Step 5 hands each finder only the entries its own files could breach — a rule about the store is noise to the finder reading the routes, and noise is what the pasted context is competing against.
 
 ### 4b. Build the surroundings, once
 
@@ -254,14 +256,15 @@ The agent definition holds the finder's contract — the bar, the risk order, th
 > <build result, analyzer warnings, test result, CI status from step 2>
 > ```
 >
-> **Standards digest — the repo's written rules that this diff could breach. Do not go looking for more documentation:**
+> **Standards digest — the repo's written rules that *your files* could breach. Do not go looking for more documentation:**
 > ```
-> <digest from step 4>
+> <digest from step 4, entries that apply to this area's files>
 > ```
 >
 > **Intent brief — the author's own account. Stated intent is verbatim:**
 > ```
-> <brief from step 3>
+> <brief from step 3: stated intent, goal, scope and constraints whole and unedited;
+>  Already raised filtered to this area's paths>
 > ```
 >
 > **Usage map — every importer of your changed files that we found. An empty line means none:**
@@ -271,11 +274,23 @@ The agent definition holds the finder's contract — the bar, the risk order, th
 >
 > **Normally changes alongside these files, and did not this time:**
 > ```
-> <omission list from step 4b, or "nothing notable">
+> <omission list from step 4b, entries that co-change with this area's files, or "nothing notable">
 > ```
 > Treat that as a question, not an answer. An unchanged file is a defect only when you can say what breaks because it stayed still.
 >
 > Return the schema from your instructions and nothing else.
+
+**Paste it, do not point at it.** All of that goes in the prompt body. A finder handed a path to
+go and fetch reads it last, or not at all, and this context only earns its tokens by shaping the
+finder's judgement before it opens the diff. The area patch is the one exception, because it is
+too big to paste and the finder cannot start without it.
+
+**Filter by area, never summarise.** The digest, the usage map, the omission list and **Already
+raised** are per-area: give each finder the entries that name its own files and drop the rest. A
+rule about the store is noise to the finder reading the routes, and the paste is competing with
+the diff for its attention. **Stated intent, goal, scope and constraints are never filtered and
+never paraphrased** — every finder gets them whole, verbatim block included. That is the part
+that stops a false finding, and it is the cheapest thing in the prompt.
 
 Read the `COVERAGE` block in every return. If a finder ignored something that carries logic, that is a gap you either accept out loud in the report or send back.
 
@@ -484,54 +499,17 @@ One line each: the claim, and the sentence that killed it. Refuted claims, findi
 
 ### 8. Fix or comment
 
-With small findings, a comment is ceremony wrapped around work we could just do.
+Read [reference/deliver.md](./reference/deliver.md) now, and follow it. It rules on fix versus
+comment, on where the fix lands, and on the comment's shape — then records where this review
+reached, so the next one can start here.
 
-**Whose branch it is does not enter this decision.** Not the author, not the remote, not whether we can push. Ask only:
+## When something goes wrong
 
-- Is every finding a contained edit — a few files, no open design decision?
-- Do the repo's checks run locally, so we can prove the fix?
+Read [reference/failure-modes.md](./reference/failure-modes.md) — do not improvise past one of
+these — when any of them happens:
 
-Both yes, fixing wins. Otherwise comment: a finding that needs the author's decision, or a fix that reshapes the change.
-
-**Worth-its-own-PR findings sit outside this decision.** Each one is the user's call: fold it into this branch, or raise it as its own work. Leave them out of the fix batch and the PR comment until the user picks them — a fix to code this PR did not touch grows the diff the author has to defend.
-
-Recommend one in a sentence, with the reason. Then ask: fix these now, post the comment, or fix and post a short note? Ask about the nearby list separately, and name the tracker if the repo has one.
-
-Where the fix **lands** is a separate question, answered after the user picks — never a reason not to do the work. Editing and running checks is local and reversible on any branch. Push when the branch takes our push; otherwise offer `git format-patch`, a branch to pull, or a diff in the comment. Ask before pushing to a branch that is not ours.
-
-**On fix** — one finding at a time, run the checks, report per finding what changed. Anything left alone goes into the comment with the reason.
-
-**On comment** — the same plain language, and **the same layout as 7d**, with three changes for the thread:
-
-- **Demote every heading one level.** `## ✅ Approve` rather than `#`, because GitHub already gives the comment a frame. Everything else keeps its shape — the facts row, the numbered H4 findings, the two-column tables, the rules.
-- **Open with one sentence naming the fixed point**, under the verdict heading, so nobody reads a narrowed review as a full one.
-- **Drop the 🗂️ footer.** That file is for us, not for the thread.
-
-Quote the author back to themselves on any declared finding and say why it still stands. Show the full draft, then ask before posting.
-
-```bash
-gh pr comment <number> --body-file <file>
-```
-
-Write the body to a scratch file first, so the markdown survives the shell.
-
-Finally, record where this review reached, so the next one starts here:
-
-```bash
-git config --local pr-review.last-<pr-number> $(git rev-parse HEAD)
-```
-
-## Failure modes
-
-- **An agent definition is missing** (`pr-review-finder`, `pr-review-verifier` are not in the agent list — they ship alongside this skill, in the same plugin or in `~/.claude/agents/`) → spawn `general-purpose` and paste the missing contract into the prompt. Say in the report that reasoning effort was uncontrolled: effort is a frontmatter field, and the `Agent` tool has no argument for it.
-- **The build takes too long, or does not run here** → say so and continue. Do not have an agent guess at compile errors; a model speculating about whether code builds is the least reliable finding you can produce.
-- **Every finding gets refuted** → report that honestly, and do not resurrect one to fill the page. A refuted finding is the system working. If it happens on every PR, the finder's bar is too low — check whether it is reporting smells with a consequence bolted on.
-- **A skeptic confirms a finding by widening it** → its verdict does not apply to the claim you asked about. Treat the claim as refuted, and put the wider version through its own verification rather than reporting it on the strength of the old one.
-- **The finder returns prose instead of the schema** → re-run that one agent. Do not hand-convert its prose; the schema fields are the discipline, and a defect with no stated consequence is the thing being filtered out.
-- **The PR has no description** → say so. Nothing can be dropped as declared intent, and the spec axis has only the code and the tickets to judge against. Do not soften the report to compensate.
-- **The profile names a command or skill that does not exist here** → say so in one line and continue without it. A profile can rot; a review that stops because of it is worse than one that says which check it could not run.
-- **A profile pass wants something interactive** — a login, a credential, a click — → never supply it yourself. Ask the user to do that one thing, then carry on. If they decline, the pass is skipped and the report says so.
-- **7a dropped everything** → check you were not demanding proof of an incident. The test is whether a person can meet the fault, not whether one already has. "No bug report exists" is not a refutation, and neither is "the tests pass".
-- **The usage map is empty for a changed file** → say so and let the finder judge it. Dead code is a real answer, and so is "the grep missed a dynamic import". Do not treat an empty line as proof that nothing calls it.
-- **Every confirmed finding has a vague `REPRO`** → the skeptics are agreeing rather than testing. Re-run the worst one with the repro requirement quoted back at it.
-- **Empty diff** → wrong fixed point, or a stale `pr-review.last-*` from a force-push. Check `git log --oneline <fixed-point>..HEAD`, and clear the config value if the branch was rewritten.
+an agent definition is missing · the build is too slow or will not run here · every finding gets
+refuted · a skeptic confirms a finding by widening it · a finder returns prose instead of the
+schema · the PR has no description · the profile names a command or skill that does not exist ·
+a profile pass wants something interactive · 7a dropped every finding · the usage map is empty
+for a changed file · every confirmed finding has a vague `REPRO` · the diff is empty.
