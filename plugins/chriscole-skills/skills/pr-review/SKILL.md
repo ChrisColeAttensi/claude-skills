@@ -394,7 +394,7 @@ Adjacent findings do not move the verdict — a PR that sits next to an older bu
 
 #### 7d. Write it
 
-**The report answers one question: can this merge?** Lead with the answer. Then list only what someone has to act on. A reader who does everything the report says has a mergeable PR, and nothing in the report exists that they cannot act on.
+**The report answers one question: can this merge?** A title saying what the PR does, then the answer, then only what someone has to act on. A reader who does everything the report says has a mergeable PR, and nothing in the report exists that they cannot act on.
 
 ##### Write it so a tired person understands it
 
@@ -423,7 +423,11 @@ The author is reading this at the end of their day, on a phone, on a change they
 **Layout is part of the answer.** A reviewer scans before they read, so the shape has to survive a three-second glance: verdict, then the facts row, then numbered work. Emoji mark sections and statuses, nothing else — never inside a sentence, never on a bullet, never more than one per heading. They help the eye find a section. They are not decoration.
 
 ```
-# ✅ Approve — <one sentence saying why>
+# <what this PR does — one plain-language sentence, no more than fifteen words>
+
+<one sentence more, only when the title alone leaves the reader guessing what it is for>
+
+## ✅ Approve — <one sentence saying why>
 
 `<fixed-point>` → `HEAD` · **<N>** commits · **<F>** files
 🔨 build **passed** · 🧪 tests **passed** · 📐 tripwires **clear** · 🖥️ live check **passed** (dummy)
@@ -436,13 +440,11 @@ The author is reading this at the end of their day, on a phone, on a change they
 
 `path:line` · <breaks a house rule | not what the PR says it does> · <new here | older than the branch>
 
-| | |
-|---|---|
-| **What happens** | <who is doing what, and what they see — one sentence, no code words> |
-| **Why** | <the mechanism, one sentence — this is where the code words go> |
-| **Repro** | <the state and steps that set it off — the skeptic's own words> |
-| **Fix** | <one sentence> |
-| **PR says** | "<the declaring sentence>" — <why it still stands> |
+- **What happens** — <who is doing what, and what they see — one sentence, no code words>
+- **Why** — <the mechanism, one sentence — this is where the code words go>
+- **Repro** — <the state and steps that set it off — the skeptic's own words>
+- **Fix** — <one sentence>
+- **PR says** — "<the declaring sentence>" — <why it still stands>
 
 ### 2. <title>
 
@@ -473,10 +475,12 @@ Pre-existing, and this change works without them. None of it blocks the merge.
 
 Rules for the shape:
 
-- **The verdict is an H1, and it carries its own reason.** `# ✅ Approve` or `# 🛑 Request changes`, then an em dash and one sentence. A reader who stops there has the answer.
+- **The H1 says what the PR does, and it is the first thing on the page.** One plain-language sentence, fifteen words at most — the **Goal** from the intent brief, in the author's terms, written so a reader who has not opened the branch knows what they are being asked to merge. Add one sentence under it only when the title alone leaves them guessing what it is for. Not a list of files, not a summary of the findings, not the PR description pasted back. Write it even when the verdict is an approve — it is what gets read when someone opens this review a month from now. A heading, not a blockquote: a terminal renders a blockquote dim and indented, and the one line everybody needs is the one line nobody should have to hunt for.
+- **The verdict is the H2 directly under the title, and it carries its own reason.** `## ✅ Approve` or `## 🛑 Request changes`, then an em dash and one sentence. Subject first, ruling second — a reader who stops after those two headings has both what this is and whether it can merge.
 - **The facts row is two lines, never a paragraph.** Range and counts on the first, machine results on the second, separated by `·`. Include only the checks that ran — drop `🖥️ live check` when there was none, and write `🧪 tests **not run**` rather than leaving tests out. Mark a failure with ❌ and keep the same line.
 - **Findings are H3 and numbered**, so `#2` is a thing a person can say in a reply.
-- **The two-column table is the finding.** `What happens`, `Why`, `Repro`, `Fix` — always, in that order. Effect first, mechanism second: someone skimming the left column alone should still learn what is broken. `Repro` is the skeptic's line, copied, because the author will check it before they fix anything. `PR says` only when the PR declared the behaviour. No other rows, and nothing outside the table.
+- **No tables anywhere in the report.** Most of this is read in a terminal, where a markdown table wraps into rubble at the first long sentence. Labelled bullets say the same thing and survive any width.
+- **The labelled bullets are the finding.** `What happens`, `Why`, `Repro`, `Fix` — always, in that order, one bullet each, label bolded and an em dash after it. Effect first, mechanism second: someone reading only the first bullet should still learn what is broken. `Repro` is the skeptic's line, copied, because the author will check it before they fix anything. `PR says` only when the PR declared the behaviour. No other labels, and nothing outside the bullets.
 - **Titles are plain language.** "The drag springs back half the time", not "Non-atomic reorder chain". The title is what gets quoted in Slack.
 - **`---` between sections only**, not between findings. The headings already separate those.
 - **One section, one emoji**: ✅ 🛑 for the verdict, 🛠️ 🤔 📌 for the three lists, 🗂️ for the footer, and the four in the facts row. That is the whole vocabulary. Do not invent more, and do not put any of them in a finding's sentences.
@@ -487,7 +491,7 @@ Nothing else goes in the report. No counts of what was dropped, no refuted claim
 
 A **Worth its own PR** entry clears the same bar as any other: name what breaks, name who meets it. That section is for defects the reading turned up, not a home for the observations the bar already rejected.
 
-**If the repo's profile says no emoji, drop them and change nothing else.** The structure does the work; the markers only help the eye find it. Same headings, same tables, same rules — plain `Approve` and `Request changes`, and `passed` / `failed` in the facts row.
+**If the repo's profile says no emoji, drop them and change nothing else.** The structure does the work; the markers only help the eye find it. Same headings, same bullets, same rules — plain `Approve` and `Request changes`, and `passed` / `failed` in the facts row.
 
 **Write the discarded half to a file, and say where it is in one line at the end.** A refutation deletes a finding permanently, and it is the one judgement in the review nobody can see afterwards — so it has to survive somewhere, just not in front of the reader:
 

@@ -19,7 +19,7 @@ Where the fix **lands** is a separate question, answered after the user picks �
 
 **On comment** — the same plain language, and **the same layout as 7d**, with three changes for the thread:
 
-- **Demote every heading one level.** `## ✅ Approve` rather than `#`, because GitHub already gives the comment a frame. Everything else keeps its shape — the facts row, the numbered H4 findings, the two-column tables, the rules.
+- **Demote every heading one level.** `## <what this PR does>` for the title and `### ✅ Approve` for the verdict, because GitHub already gives the comment a frame. Everything else keeps its shape — the facts row, the numbered findings one level down, the labelled bullets, the rules.
 - **Open with one sentence naming the fixed point**, under the verdict heading, so nobody reads a narrowed review as a full one.
 - **Drop the 🗂️ footer.** That file is for us, not for the thread.
 
