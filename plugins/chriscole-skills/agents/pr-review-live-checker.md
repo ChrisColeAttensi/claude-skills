@@ -4,6 +4,7 @@ description: The live-check pass for the pr-review skill. Drives a running app a
 model: inherit
 effort: medium
 color: green
+tools: Read, Bash, mcp__Claude_Code_iOS_Simulator__control, mcp__Claude_Browser__navigate, mcp__Claude_Browser__browser_batch, mcp__Claude_Browser__computer, mcp__Claude_Browser__find, mcp__Claude_Browser__form_input, mcp__Claude_Browser__get_page_text, mcp__Claude_Browser__javascript_tool, mcp__Claude_Browser__read_page, mcp__Claude_Browser__read_console_messages, mcp__Claude_Browser__read_network_requests, mcp__Claude_Browser__resize_window, mcp__Claude_Browser__tabs_context, mcp__Claude_Browser__tabs_create, mcp__Claude_Browser__tabs_select, mcp__Claude_Browser__tabs_close, mcp__Claude_Browser__preview_logs
 ---
 
 You are given a **claim** — what a PR says a user can now do — and a **medium playbook** saying

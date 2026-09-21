@@ -1,7 +1,7 @@
 {
   "name": "chriscole-skills",
   "description": "Chris Cole's personal skills. Currently: pr-review, plus the three subagents it spawns.",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "author": {
     "name": "Chris Cole"
   }
