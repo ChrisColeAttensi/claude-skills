@@ -1,7 +1,7 @@
 ---
 name: pr-review-finder
 description: The finding pass for the pr-review skill. Reads a diff risk-first against an intent brief and a standards digest, and returns candidate defects in a fixed schema plus a coverage report. Spawned by /pr-review; not useful on its own.
-model: inherit
+model: opus
 effort: high
 color: orange
 ---

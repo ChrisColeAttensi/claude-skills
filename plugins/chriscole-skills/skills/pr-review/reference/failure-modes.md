@@ -3,7 +3,7 @@
 Each entry is a situation, then what to do about it. Do not improvise past one of these.
 
 
-- **An agent definition is missing** (`pr-review-finder`, `pr-review-verifier`, `pr-review-live-checker` are not in the agent list — they ship alongside this skill, in the same plugin or in `~/.claude/agents/`) → spawn `general-purpose` and paste the missing contract into the prompt. Say in the report that reasoning effort was uncontrolled: effort is a frontmatter field, and the `Agent` tool has no argument for it.
+- **An agent definition is missing** (`pr-review-finder`, `pr-review-verifier`, `pr-review-live-checker` are not in the agent list — they ship alongside this skill, in the same plugin or in `~/.claude/agents/`) → spawn `general-purpose` with `model: "opus"` (or the model the invoker named) and paste the missing contract into the prompt. Say in the report that reasoning effort was uncontrolled: effort is a frontmatter field, and the `Agent` tool has no argument for it.
 - **The build takes too long, or does not run here** → say so and continue. Do not have an agent guess at compile errors; a model speculating about whether code builds is the least reliable finding you can produce.
 - **Every finding gets refuted** → report that honestly, and do not resurrect one to fill the page. A refuted finding is the system working. If it happens on every PR, the finder's bar is too low — check whether it is reporting smells with a consequence bolted on.
 - **A skeptic confirms a finding by widening it** → its verdict does not apply to the claim you asked about. Treat the claim as refuted, and put the wider version through its own verification rather than reporting it on the strength of the old one.

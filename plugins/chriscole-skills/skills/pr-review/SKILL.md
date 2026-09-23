@@ -2,6 +2,7 @@
 name: pr-review
 description: Review a PR the cheap way round — machine facts first, then the repo's own written rules, then one risk-first reading of the diff, then a skeptic per finding — and report only the defects that survive being argued with and that somebody will actually meet.
 disable-model-invocation: true
+model: opus
 ---
 
 ## The shape of it
@@ -37,6 +38,8 @@ Hence **finders split by area, and a skeptic per finding**. A clean PR costs lit
 **And one question decides every finding twice:** *what breaks, and who meets it?* The finder applies it, the skeptic attacks it, and step 7 applies it again to what is left. If nothing ever reaches the fault, it is a fact about the code rather than a bug in it.
 
 ## Process
+
+**Models.** This skill and its three agents default to the latest Opus (`model: opus` in their frontmatter), whatever model the session runs on. Leave the `Agent` tool's `model` argument off every spawn. Pass it only when the invoker named a model for this review ("run it on Sonnet"), and then pass that model on every spawn, not a subset.
 
 Steps 0 to 4 are cheap and run in the main session. Spend the budget on 5 and 6.
 

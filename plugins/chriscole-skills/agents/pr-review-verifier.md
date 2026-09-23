@@ -1,7 +1,7 @@
 ---
 name: pr-review-verifier
 description: The verification pass for the pr-review skill. Takes one claimed defect and tries to refute it against the real code, returning confirmed, refuted, or unsettled. Spawned one per candidate finding by /pr-review; not useful on its own.
-model: inherit
+model: opus
 effort: medium
 color: cyan
 ---
