@@ -115,6 +115,18 @@ Medium playbooks say what those cash out to. Web: [reference/live-check-web.md](
 No playbook for the medium the profile names — say so, apply the three rules directly, and keep
 the agent.
 
+**A web check has two drivers; use the one this session has.** The built-in browser
+(`mcp__Claude_Browser__*`) exists only inside Claude Desktop. Claude in Chrome
+(`mcp__claude-in-chrome__*`) exists when the CLI runs with `--chrome`, or after `/chrome`.
+Prefer the built-in browser when both are there, and name the driver in the agent's brief so it
+knows which tools to reach for.
+
+**Neither driver is a gap to offer a fix for, not a reason to skip quietly.** With a user in the
+loop, say what the check would settle and offer Claude in Chrome: "`/chrome` connects your
+Chrome, then I can run it." With nobody to ask (`-p`), the pass is unreachable: say so in the
+report's facts row, and name the fix — rerun with `--chrome`, or from Claude Desktop — so the
+reader knows the premise went unexercised and how to exercise it.
+
 Its result behaves like any other pass: findings join the candidate pool and go through a skeptic
 in step 6, with the observation as evidence, which is the strongest kind. A clean run is a fact —
 say so in the report's second line, naming the medium and the backend, so the reader knows the

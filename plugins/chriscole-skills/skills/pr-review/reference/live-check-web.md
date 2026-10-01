@@ -8,6 +8,21 @@ Measured on one wizard flow, against the same claim with no budget: **34 screens
 73 tool calls to 49, 7.9 minutes to 4.1. Both runs reached the same verdict on all three points.
 The screenshots were the spend; the wandering was the latency.
 
+## Two drivers, same rules
+
+Everything below holds for both. The tools differ in name, and every Chrome tool takes a `tabId`:
+call `tabs_context_mcp` once, then `tabs_create_mcp` for your own tab and `navigate` it.
+
+| Built-in browser (`mcp__Claude_Browser__`) | Claude in Chrome (`mcp__claude-in-chrome__`) |
+| --- | --- |
+| `navigate`, `find`, `read_page`, `get_page_text`, `computer`, `form_input`, `javascript_tool`, `browser_batch` | same names |
+| `read_console_messages`, `read_network_requests`, `resize_window` | same names |
+| `tabs_create`, `tabs_select`, `tabs_close`, `tabs_context` | `tabs_create_mcp`, `tabs_close_mcp`, `tabs_context_mcp` |
+| `preview_logs` (dev server output) | none: read the server's log with `Bash` instead |
+
+Chrome is the user's own browser. Open a tab of your own, stay on the app under test, and touch
+no other tab, account or saved session.
+
 ## Read with text, not pictures
 
 A screenshot costs roughly a thousand tokens and answers less than a page read.
@@ -53,5 +68,5 @@ a fact about the app, not a finding about this PR, and chasing it is where the b
 
 ## Tabs
 
-Open your own with `tabs_create` and drive that. The session's other tabs belong to whoever
+Open your own with `tabs_create` (`tabs_create_mcp` in Chrome) and drive that. The session's other tabs belong to whoever
 opened them. Close yours when you are done.
