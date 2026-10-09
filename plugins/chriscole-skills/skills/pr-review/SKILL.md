@@ -505,7 +505,7 @@ The author is reading this at the end of their day, on a phone, on a change they
 
 - **One idea per sentence. Twenty words at most.** Active voice, present tense. Two short sentences always beat one correct long one.
 - **Name a person and what they are doing.** "An author dragging a moment", "a learner halfway through a module", "whoever deploys this next". Not "the caller", "the consumer", "the client".
-- **Use the repo's nouns and no others.** `CONTEXT.md` is the vocabulary — project, module, moment, Embla. Define anything it omits in one clause, the first time. If you invented the word, it was probably not worth saying.
+- **Use the repo's nouns and no others.** The repo's glossary is the vocabulary — `CONTEXT.md`, `GLOSSARY.md`, or whatever the profile names. Define anything it omits in one clause, the first time. If you invented the word, it was probably not worth saying.
 - **Keep code-internal words out of the effect sentence.** Payload, snapshot, invariant, idempotent, propagate, hydrate, dereference, non-atomic, race — these describe the machine, not the person. They belong in the mechanism sentence, once, or nowhere.
 - **Prefer the concrete.** "Loses the order" over "fails to persist state". "Twice in a row" over "under concurrent invocation". "Half the time" over "intermittently".
 - **No hedging.** "May potentially fail under certain conditions" says nothing. Say when it fails, or find out.

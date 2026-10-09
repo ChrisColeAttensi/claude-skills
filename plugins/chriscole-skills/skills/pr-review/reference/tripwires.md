@@ -27,7 +27,7 @@ Three properties, all of them required:
   clone that silently loses a field. Style breaches are not tripwires — the analyzers own
   those, and they never forget.
 
-## Worked example, from this Creator repo
+## Worked example, from a .NET desktop app
 
 Illustrative, not a fixed list. Re-derive per repo, and update as the docs move.
 
