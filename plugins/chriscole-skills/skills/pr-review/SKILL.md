@@ -139,6 +139,13 @@ the app. Then:
 
 The profile owns the specifics — which script, which port to prefer, how its cert gets trusted.
 
+**A login is the user's, and often already done.** Before asking for one, open the app and let it
+settle: still on the app, rendered → a session is cached, say so and carry on; redirected to the
+login host the profile names → only now ask. Sessions are per origin, so a server that landed on
+a different port has none, and a prompt there is expected — say which port when you ask. The user
+logs in; never enter credentials and never ask for them. One login then serves the premise check
+and step 6b.
+
 **Neither driver is a gap to offer a fix for, not a reason to skip quietly.** With a user in the
 loop, say what the check would settle and offer Claude in Chrome: "`/chrome` connects your
 Chrome, then I can run it." With nobody to ask (`-p`), the pass is unreachable: say so in the
