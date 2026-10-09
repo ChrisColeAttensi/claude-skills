@@ -40,7 +40,8 @@ of refs instead of the tree.
 
 ## Screenshots
 
-**At most one, at the end, as evidence.** Pass `scale: 0.5` — quarter the tokens, and enough for
+**At most one per claim, at the end, as evidence** — one for a premise, one per finding on a
+list, and only where text cannot settle it. Pass `scale: 0.5` — quarter the tokens, and enough for
 any claim a reviewer will read.
 
 Take it only for a claim that is genuinely visual: layout, spacing, colour, ordering you cannot
@@ -62,6 +63,8 @@ pixels; they survive batching and re-renders.
   round; unreachable is a legitimate result and the reader needs to know which parts were not
   exercised.
 - You have found the defect the claim was about. Stop — the skeptic in step 6 does the rest.
+- On a list of findings: each finding's `REPRO` has run, or hit a step this mode cannot take.
+  Give it its verdict and move to the next. Stop after the last.
 
 Incidental discoveries away from the claim are not your job. A render quirk two screens away is
 a fact about the app, not a finding about this PR, and chasing it is where the budget goes.

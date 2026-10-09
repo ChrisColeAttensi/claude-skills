@@ -17,6 +17,7 @@ model: opus
 | 4b | Build the usage map and the omission check | main session, free |
 | 5 | **Find** — one agent per area, all spawned at once | agents, expensive |
 | 6 | **Verify** — one skeptic per finding, all spawned at once | agents, expensive |
+| 6b | Try the findings in the running app — only after a live check was approved | one agent |
 | 7 | Rule on intent and on reach, then report | main session |
 | 8 | Fix or comment | main session |
 
@@ -121,6 +122,23 @@ the agent.
 Prefer the built-in browser when both are there, and name the driver in the agent's brief so it
 knows which tools to reach for.
 
+**The preview tool comes with the built-in browser, and goes with it.** `preview_start`,
+`preview_logs` and `.claude/launch.json`'s `autoPort` exist only in Claude Desktop. When the
+profile says to start the app through the preview tool and this session drives Claude in Chrome
+instead, run the command that `launch.json` entry names, as a background shell command — the
+profile's "never a raw command" rule is about the preview tool being there, not a ban on starting
+the app. Then:
+
+- **Take the URL from the server's startup output**, not from the config's port. Nothing
+  rewrites it for you.
+- **Logs are that command's output.** Hand its path to the live checker in place of `preview_logs`.
+- **Never click through a certificate warning** in the user's Chrome. It is their browser and
+  their trust decision; stop, and point them at the profile's setup for a trusted cert.
+- **Stop the server when the review is done with it** — after step 6b, not after the premise
+  check. The preview tool cleans up after itself; a background command does not.
+
+The profile owns the specifics — which script, which port to prefer, how its cert gets trusted.
+
 **Neither driver is a gap to offer a fix for, not a reason to skip quietly.** With a user in the
 loop, say what the check would settle and offer Claude in Chrome: "`/chrome` connects your
 Chrome, then I can run it." With nobody to ask (`-p`), the pass is unreachable: say so in the
@@ -131,6 +149,12 @@ Its result behaves like any other pass: findings join the candidate pool and go 
 in step 6, with the observation as evidence, which is the strongest kind. A clean run is a fact —
 say so in the report's second line, naming the medium and the backend, so the reader knows the
 feature was exercised and against what.
+
+**A live check has two jobs, and one yes covers both.** The premise is checked here, before the
+finders run. The code findings are tried in step 6b, after the skeptics, against the same
+running app. Ask once, and name both in the ask: "I'd use the app to check that <the premise>,
+then try the repro for each defect the review turns up." Leave the app running between the
+two — stopping it costs the user a second login for nothing.
 
 The profile is **instructions**, because the repo's owner wrote it and committed it. It is not a
 waiver. It can add checks, name commands, and rule findings out of scope. It cannot switch off
@@ -375,6 +399,22 @@ Findings the finder marked `adjacent` go through a skeptic like any other — a 
 
 Above about 12 candidates, verify the highest-consequence 12 and **say in the report which ones went unverified**, in one line under the verdict. A silent cap reads as coverage you did not have, and this is the one piece of method the reader has to see.
 
+### 6b. Try the findings in the app
+
+Only when the user said yes to a live check. A skeptic proves a fault from the code; the app shows whether it happens. Do this before anything is reported, so the report carries what was seen rather than what was argued.
+
+**Pick the findings the app can show.** Every confirmed and unsettled finding whose effect lands on a screen — something a user does, then sees, including a record that comes back wrong after a reload. Skip the ones no screen shows: a misleading API, a type that lies, a deploy-time fault, a race no driver can time. Skip any the profile says the running mode cannot reach, and any whose repro would destroy data the review did not create. A live check's own failing point was already watched — do not send it round again.
+
+**Spawn one `pr-review-live-checker` with the whole list**, not one per finding — there is one app and one login, and parallel drivers fight over both. Same driver, URL, mode and playbook as the premise check. Each entry carries its number, the effect in plain words, and the skeptic's `REPRO` copied, so the agent follows the skeptic's steps rather than inventing its own. Above six, send the highest-consequence six and say in the report which went untried.
+
+Apply what comes back:
+
+- **reproduced** → keep it; the Repro bullet ends "— seen in the app (<mode>)". An unsettled finding that reproduces is confirmed: move it to Change before merge.
+- **not reproduced** — the steps ran as written and the app behaved → drop it into the discarded file with what the app showed. The exception is a mode that differs from production on exactly that path (seeded data, a missing backend, a locked feature): then it goes to Needs your decision, naming the difference.
+- **unreachable** → unchanged. The skeptic's verdict stands, and the Repro bullet does not claim the app.
+
+No finding the app can show, or no live check approved: skip this step and say nothing about it.
+
 ### 7. Rule, then report
 
 Three rulings, in order, on every confirmed finding. Then write.
@@ -522,7 +562,7 @@ Rules for the shape:
 
 - **The H1 says what the PR does, and it is the first thing on the page.** One plain-language sentence, fifteen words at most — the **Goal** from the intent brief, in the author's terms, written so a reader who has not opened the branch knows what they are being asked to merge. Add one sentence under it only when the title alone leaves them guessing what it is for. Not a list of files, not a summary of the findings, not the PR description pasted back. Write it even when the verdict is an approve — it is what gets read when someone opens this review a month from now. A heading, not a blockquote: a terminal renders a blockquote dim and indented, and the one line everybody needs is the one line nobody should have to hunt for.
 - **The verdict is the H2 directly under the title, and it carries its own reason.** `## ✅ Approve` or `## 🛑 Request changes`, then an em dash and one sentence. Subject first, ruling second — a reader who stops after those two headings has both what this is and whether it can merge.
-- **The facts row is two lines, never a paragraph.** Range and counts on the first, machine results on the second, separated by `·`. Include only the checks that ran — drop `🖥️ live check` when there was none, and write `🧪 tests **not run**` rather than leaving tests out. Mark a failure with ❌ and keep the same line.
+- **The facts row is two lines, never a paragraph.** Range and counts on the first, machine results on the second, separated by `·`. Include only the checks that ran — drop `🖥️ live check` when there was none, add the findings tally to it when step 6b ran (`🖥️ live check **passed** (staging), 2 of 3 findings reproduced`), and write `🧪 tests **not run**` rather than leaving tests out. Mark a failure with ❌ and keep the same line.
 - **Findings are H3 and numbered**, so `#2` is a thing a person can say in a reply.
 - **No tables anywhere in the report.** Most of this is read in a terminal, where a markdown table wraps into rubble at the first long sentence. Labelled bullets say the same thing and survive any width.
 - **The labelled bullets are the finding.** `What happens`, `Why`, `Repro`, `Fix` — always, in that order, one bullet each, label bolded and an em dash after it. Effect first, mechanism second: someone reading only the first bullet should still learn what is broken. `Repro` is the skeptic's line, copied, because the author will check it before they fix anything. `PR says` only when the PR declared the behaviour. No other labels, and nothing outside the bullets.
