@@ -593,6 +593,13 @@ A **Worth its own PR** entry clears the same bar as any other: name what breaks,
 
 One line each: the claim, and the sentence that killed it. Refuted claims, findings dropped at 7a because nobody meets them — with the blank you could not fill — findings dropped as declared intent, findings already in the thread, and the finders' dropped-observation counts. The footer line in the template is the only mention it gets in the report.
 
+**Print the report, whole, as your own message text — before any question.** A host may offer a
+question box, buttons or a closing summary (Claude Desktop's wrap-up, `AskUserQuestion`). Those
+end the turn and hold a few hundred characters: a finding squeezed into one loses its `Repro`, and
+the user sees a "fix it" button for a bug they cannot picture. The report goes out first, every
+finding with all its labelled bullets. A box or a button afterwards carries only step 8's decision,
+never a finding.
+
 ### 8. Fix or comment
 
 Read [reference/deliver.md](./reference/deliver.md) now, and follow it. It rules on fix versus

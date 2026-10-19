@@ -11,6 +11,8 @@ Both yes, fixing wins. Otherwise comment: a finding that needs the author's deci
 
 **Worth-its-own-PR findings sit outside this decision.** Each one is the user's call: fold it into this branch, or raise it as its own work. Leave them out of the fix batch and the PR comment until the user picks them — a fix to code this PR did not touch grows the diff the author has to defend.
 
+The 7d report is already on screen in full by now. If it is not, print it before asking anything: the user decides fix or comment from the findings, so the question cannot come first.
+
 Recommend one in a sentence, with the reason. Then ask: fix these now, post the comment, or fix and post a short note? Ask about the nearby list separately, and name the tracker if the repo has one.
 
 Where the fix **lands** is a separate question, answered after the user picks — never a reason not to do the work. Editing and running checks is local and reversible on any branch. Push when the branch takes our push; otherwise offer `git format-patch`, a branch to pull, or a diff in the comment. Ask before pushing to a branch that is not ours.
