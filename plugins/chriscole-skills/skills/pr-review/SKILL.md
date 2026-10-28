@@ -18,6 +18,7 @@ model: opus
 | 5 | **Find** — one agent per area, all spawned at once | agents, expensive |
 | 6 | **Verify** — one skeptic per finding, all spawned at once | agents, expensive |
 | 6b | Try the findings in the running app — only after a live check was approved | one agent |
+| 6c | **Decide** — settle or decide every open question, escalate only what must be | agents, one per question |
 | 7 | Rule on intent and on reach, then report | main session |
 | 8 | Fix or comment | main session |
 
@@ -73,6 +74,7 @@ A file, and you read it whole — it is short by construction — and fold it in
 | build and test commands | step 2, in place of guessing |
 | **extra passes** — another skill to run, a check only this repo needs | between step 4 and step 5, see below |
 | what to leave alone | drop those findings at step 7, and say the profile dropped them |
+| a decision policy — what always gets asked, which choices a doc already rules | step 6c, pasted into every decider |
 | a house style for the report — no emoji, a required preamble, where the comment goes | step 7d, and step 8's comment |
 
 **An extra pass is a conditional.** The profile names a trigger — a path the diff touches, a
@@ -398,7 +400,7 @@ Then apply the verdicts, and this is not negotiable — a refuted finding does n
 - **confirmed** → it goes in the report. The skeptic's `REPRO` is the evidence, and it carries through to the report's own `Repro` row.
 - **confirmed with no `REPRO`** → treat it as refuted. A skeptic that cannot say what sets the fault off has agreed with the finder rather than tested it, and agreement is the thing this pass exists to replace.
 - **refuted** → dropped. Count it.
-- **unsettled** → the report's "Needs your decision" section, with what would settle it.
+- **unsettled** → step 6c, with what would settle it. Not the report — not yet.
 
 Where a skeptic returns a `CORRECTION`, take it: it read the code more closely than the finder did.
 
@@ -417,10 +419,74 @@ Only when the user said yes to a live check. A skeptic proves a fault from the c
 Apply what comes back:
 
 - **reproduced** → keep it; the Repro bullet ends "— seen in the app (<mode>)". An unsettled finding that reproduces is confirmed: move it to Change before merge.
-- **not reproduced** — the steps ran as written and the app behaved → drop it into the discarded file with what the app showed. The exception is a mode that differs from production on exactly that path (seeded data, a missing backend, a locked feature): then it goes to Needs your decision, naming the difference.
+- **not reproduced** — the steps ran as written and the app behaved → drop it into the discarded file with what the app showed. The exception is a mode that differs from production on exactly that path (seeded data, a missing backend, a locked feature): then it goes to step 6c, naming the difference.
 - **unreachable** → unchanged. The skeptic's verdict stands, and the Repro bullet does not claim the app.
 
 No finding the app can show, or no live check approved: skip this step and say nothing about it.
+
+### 6c. Decide
+
+A review that ends in a list of questions has handed its hardest work back to the user. Most of those questions have an answer in the repo — in the dependency's source, a probe test, the commit that added the guard, or the five other places this codebase already made the same call. Go and get it. **The default is to decide, and show the reasoning so a wrong call costs one line to overrule.** The user is asked only what genuinely needs them.
+
+**What counts as an open question:**
+
+- every **unsettled** verdict from step 6, and every finding 6b sent here;
+- every confirmed finding whose fix has **more than one reasonable shape** with different effects — the finder's or skeptic's `Fix` names a choice ("either reject it or default it"), or the right behaviour is a product call rather than a correction.
+
+A confirmed finding with one obvious fix is not a question. Leave it alone.
+
+**Spawn one `pr-review-decider` per question, all in a single message.** The agent definition holds the evidence ladder and the escalation bar. The prompt carries:
+
+> Answer this open question about `<repo path>`. Scratch directory for probes: `<scratch>`.
+>
+> **Question:** <the claim and what is unknown about it, or the fix and its competing shapes>
+> **Where:** `<path>:<line>`
+> **What would settle it:** <the skeptic's note, or "a choice, not a fact">
+>
+> ```diff
+> <the hunk, plus enough surrounding lines to judge it>
+> ```
+>
+> **Stated intent — verbatim:**
+> ```
+> <the brief's Stated intent block, whole>
+> ```
+>
+> **Written rules that apply:**
+> ```
+> <the digest entries for this path>
+> ```
+>
+> **Profile decision policy:** <quoted, or "none">
+>
+> **Overrides log — decisions this user has overruled before:**
+> ```
+> <the overrides log, filtered to this topic and path's area, or "none">
+> ```
+>
+> Live check: <"not approved", or the URL, mode and driver from step 0>
+>
+> Return the schema from your instructions and nothing else.
+
+The overrides log lives in the repo's git directory, so it follows the clone and never gets committed:
+
+```bash
+cat "$(git rev-parse --git-common-dir)/pr-review-overrides.md" 2>/dev/null
+```
+
+**Apply what comes back:**
+
+- **settled confirmed** → a finding like any other, with the decider's `REPRO`. It goes through 7a to 7c.
+- **settled refuted** → dropped, into the discarded file with the evidence.
+- **decided, `CHANGE: needed`** → a Change-before-merge finding, carrying the decision. It gets a **Decided** bullet in the report.
+- **decided, `CHANGE: none`** → the report's **Decided for you** section, so the user can see what was ruled fine and why.
+- **escalate** → **Needs your decision**, with the decider's `QUESTION` and the bar it cleared.
+
+**Check the escalations before you accept them.** An escalation whose `ESCALATE` reason does not match the evidence in its own return — no irreversible effect named, no security surface, precedent cited and still "no evidence" — is the decider being cautious, not careful. Send it back once, with the bar quoted. A decision that touches security or something irreversible goes to **Needs your decision** whatever the decider said: those are never decided for the user.
+
+**Check the decisions too, cheaply.** A `precedent` basis has to cite at least two `path:line` sites that agree. One site is an anecdote: treat the basis as `default`, which is still a decision, and say so.
+
+No open questions: skip this step and say nothing about it.
 
 ### 7. Rule, then report
 
@@ -536,6 +602,7 @@ The author is reading this at the end of their day, on a phone, on a change they
 - **Why** — <the mechanism, one sentence — this is where the code words go>
 - **Repro** — <the state and steps that set it off — the skeptic's own words>
 - **Fix** — <one sentence>
+- **Decided** — <the choice made, plain words> ↳ *basis:* <the evidence, short> · *instead of* <the rejected option>
 - **PR says** — "<the declaring sentence>" — <why it still stands>
 
 ### 2. <title>
@@ -544,12 +611,21 @@ The author is reading this at the end of their day, on a phone, on a change they
 
 ---
 
+## ⚖️ Decided for you · <n>
+
+Ruled fine as it is. Reply with the number to overrule one.
+
+- **<k>. `path:line`** — <the decision, in plain words>
+  ↳ *basis:* <the evidence, short> · *instead of* <the rejected option>
+
+---
+
 ## 🤔 Needs your decision · <n>
 
-Neither confirmed nor refuted from the code alone.
+Only you can make these calls.
 
-- **`path:line`** — <the question, in plain words>
-  ↳ *settle it by* <the one thing that would answer it>
+- **<k>. `path:line`** — <the question, with its options, in plain words>
+  ↳ *because* <irreversible | security | no evidence either way | the profile says ask>
 
 ---
 
@@ -572,12 +648,13 @@ Rules for the shape:
 - **The facts row is two lines, never a paragraph.** Range and counts on the first, machine results on the second, separated by `·`. Include only the checks that ran — drop `🖥️ live check` when there was none, add the findings tally to it when step 6b ran (`🖥️ live check **passed** (staging), 2 of 3 findings reproduced`), and write `🧪 tests **not run**` rather than leaving tests out. Mark a failure with ❌ and keep the same line.
 - **Findings are H3 and numbered**, so `#2` is a thing a person can say in a reply.
 - **No tables anywhere in the report.** Most of this is read in a terminal, where a markdown table wraps into rubble at the first long sentence. Labelled bullets say the same thing and survive any width.
-- **The labelled bullets are the finding.** `What happens`, `Why`, `Repro`, `Fix` — always, in that order, one bullet each, label bolded and an em dash after it. Effect first, mechanism second: someone reading only the first bullet should still learn what is broken. `Repro` is the skeptic's line, copied, because the author will check it before they fix anything. `PR says` only when the PR declared the behaviour. No other labels, and nothing outside the bullets.
+- **The labelled bullets are the finding.** `What happens`, `Why`, `Repro`, `Fix` — always, in that order, one bullet each, label bolded and an em dash after it. Effect first, mechanism second: someone reading only the first bullet should still learn what is broken. `Repro` is the skeptic's line, copied, because the author will check it before they fix anything. `Decided` only when step 6c chose the fix among real alternatives — the basis in a few words and the rejected option, so overruling it takes one reply. `PR says` only when the PR declared the behaviour. No other labels, and nothing outside the bullets.
+- **Decided for you and Needs your decision are numbered with the findings**, continuing the count, so "overrule 4" is a thing a person can say.
 - **Titles are plain language.** "The drag springs back half the time", not "Non-atomic reorder chain". The title is what gets quoted in Slack.
 - **`---` between sections only**, not between findings. The headings already separate those.
-- **One section, one emoji**: ✅ 🛑 for the verdict, 🛠️ 🤔 📌 for the three lists, 🗂️ for the footer, and the four in the facts row. That is the whole vocabulary. Do not invent more, and do not put any of them in a finding's sentences.
+- **One section, one emoji**: ✅ 🛑 for the verdict, 🛠️ ⚖️ 🤔 📌 for the four lists, 🗂️ for the footer, and the four in the facts row. That is the whole vocabulary. Do not invent more, and do not put any of them in a finding's sentences.
 
-Omit any heading whose list is empty, and its rule with it. A **Worth its own PR** list does not hold back an approve. **Approve** when nothing this PR caused has to change before merge; say what backs it in the same sentence — build green, tests green, tripwires clear. That is a stronger statement than an empty list, and it is the honest one.
+Omit any heading whose list is empty, and its rule with it. A **Worth its own PR** or **Decided for you** list does not hold back an approve; a **Needs your decision** item about this PR's own code does. **Approve** when nothing this PR caused has to change before merge; say what backs it in the same sentence — build green, tests green, tripwires clear. That is a stronger statement than an empty list, and it is the honest one.
 
 Nothing else goes in the report. No counts of what was dropped, no refuted claims, no observations without a consequence, no account of the method. The reader wants the verdict and the work.
 
@@ -591,7 +668,7 @@ A **Worth its own PR** entry clears the same bar as any other: name what breaks,
 <scratch>/pr-<n>-discarded.md
 ```
 
-One line each: the claim, and the sentence that killed it. Refuted claims, findings dropped at 7a because nobody meets them — with the blank you could not fill — findings dropped as declared intent, findings already in the thread, and the finders' dropped-observation counts. The footer line in the template is the only mention it gets in the report.
+One line each: the claim, and the sentence that killed it. Refuted claims, findings dropped at 7a because nobody meets them — with the blank you could not fill — findings dropped as declared intent, findings already in the thread, questions step 6c settled as refuted — with the evidence — and the options every decision rejected, and the finders' dropped-observation counts. The footer line in the template is the only mention it gets in the report.
 
 **Print the report, whole, as your own message text — before any question.** A host may offer a
 question box, buttons or a closing summary (Claude Desktop's wrap-up, `AskUserQuestion`). Those
@@ -615,4 +692,5 @@ an agent definition is missing · the build is too slow or will not run here · 
 refuted · a skeptic confirms a finding by widening it · a finder returns prose instead of the
 schema · the PR has no description · the profile names a command or skill that does not exist ·
 a profile pass wants something interactive · 7a dropped every finding · the usage map is empty
-for a changed file · every confirmed finding has a vague `REPRO` · the diff is empty.
+for a changed file · every confirmed finding has a vague `REPRO` · the diff is empty · every
+decider escalates · a decider left the working tree dirty · the user overrules most of the decisions.

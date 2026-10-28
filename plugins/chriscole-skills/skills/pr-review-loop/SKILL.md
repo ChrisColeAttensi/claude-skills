@@ -12,6 +12,7 @@ model: opus
 | 0 | Preflight: target, clean tree, one round of questions | main session |
 | 1 | **Review** — pr-review steps 0 to 7, whole PR | main session + its agents |
 | 2 | **Fix** — one fixer per file-disjoint group, all at once | agents |
+| 2b | **Decide** — every choice a fixer handed back, one decider each | agents |
 | 3 | **Prove** — machine checks, then one skeptic per fix, all at once | main session + agents |
 | 4 | Commit the round | main session |
 | 5 | **Re-review** — pr-review on this round's commit only | main session + its agents |
@@ -26,7 +27,9 @@ Three things it must not do, and the design follows from them:
 
 - **Mark its own homework.** The agent that wrote a fix is the worst judge of it. So a fix is proved by the same skeptic that confirmed the defect, asked the same question against the new code. Refuted now means fixed.
 - **Hide new damage.** A fix is new code. So every round's commit goes back through the full review — finders, skeptics, rulings — not just the checks.
-- **Spin.** A loop with no exit burns money politely. So every finding has an attempt budget, the loop has a round cap, and anything that needs a person stops the loop instead of being guessed at.
+- **Spin.** A loop with no exit burns money politely. So every finding has an attempt budget and the loop has a round cap.
+
+**And it must not stall on questions.** A fix that needs a choice goes to `pr-review-decider`, which settles it from the repo's own evidence — intent, written rules, the user's past overrules, precedent, then the safe default — and the finding comes back with its answer. Only a question that clears the decider's bar (irreversible, security, or user-visible with no evidence either way) waits for the user, and even that is set aside rather than stopping the loop. Everything else keeps moving; the user gets the leftover questions together, once, at the end.
 
 **Subagents cannot spawn subagents.** That is why the review itself runs in this session and not in an agent: pr-review fans out to finders and skeptics, and only the main session can do that. Fixing and proving are the work that goes to agents.
 
@@ -57,9 +60,9 @@ Run pr-review steps 0 to 7, on the whole PR, as written. Print the report, whole
 
 - **Skip pr-review step 8.** No fix-or-comment question; the loop is the answer to it.
 - **Keep the intent brief, the standards digest and the usage map** from this round. Later rounds reuse them rather than rebuilding.
-- **Keep a ledger** in `<scratch>/pr-<n>-loop.md`. One line per finding, for the whole loop: `#<id> · path:line · <title> · <state> · attempts <k>`. States: `open`, `fixed`, `needs-decision`, `stuck`, `adjacent`. Give each finding a stable id now (`R1-1`, `R1-2`, …) and never renumber.
+- **Keep a ledger** in `<scratch>/pr-<n>-loop.md`. One line per finding, for the whole loop: `#<id> · path:line · <title> · <state> · attempts <k>`. States: `open`, `fixed`, `ruled-fine`, `escalated`, `stuck`, `adjacent`, `dropped`. An `open` finding may carry a decision; copy its **Decided** line into the ledger entry. Give each finding a stable id now (`R1-1`, `R1-2`, …) and never renumber.
 
-**What the loop fixes** — only **Change before merge**. **Needs your decision** goes straight to `needs-decision`; nobody in the loop gets to decide it. **Worth its own PR** goes to `adjacent` and stays out, as pr-review's deliver step says: a fix to code this PR did not touch grows the diff the author has to defend.
+**What the loop fixes** — only **Change before merge**, decided ones included. pr-review's step 6c has already run, so **Decided for you** goes in as `ruled-fine` and **Needs your decision** as `escalated` — that one already cleared the bar, and nobody in the loop gets to decide it. **Worth its own PR** goes to `adjacent` and stays out, as pr-review's deliver step says: a fix to code this PR did not touch grows the diff the author has to defend.
 
 Nothing in Change before merge, build and tests green → the PR is already green. Skip to step 7.
 
@@ -77,6 +80,7 @@ Spawn one `pr-review-fixer` per group, **all in a single message**. The agent de
 > - **Why** — <copied>
 > - **Repro** — <the skeptic's REPRO, copied>
 > - **Fix** — <copied>
+> - **Decided** — <copied, when the finding has one>
 >
 > <next finding in the group…>
 >
@@ -99,7 +103,20 @@ Spawn one `pr-review-fixer` per group, **all in a single message**. The agent de
 
 Copy the finding's bullets, do not re-summarise them. On a second attempt, add the reason the first one failed — the skeptic's `REPRO` against the fixed code, or the failing check line — under the finding, as **Last attempt failed because:**.
 
-Apply the returns: `fixed` → step 3 proves it. `needs-decision` → the ledger, with the fixer's `NOTE` as the question. `failed` → counts as an attempt; back to step 2 next round.
+Apply the returns: `fixed` → step 3 proves it. `needs-decision` → step 2b, with the fixer's `OPTIONS`. `failed` → counts as an attempt; back to step 2 next round.
+
+### 2b. Decide
+
+Only when a fixer returned `needs-decision`, or a step-3 skeptic left a fix unsettled last round. All the fixers have returned by now, so the tree is quiet and a decider's probe cannot collide with an edit.
+
+Spawn one `pr-review-decider` per question, **all in a single message**, with pr-review step 6c's prompt: the question is the fixer's `NOTE`, the competing shapes are its `OPTIONS`, and the intent brief, digest and overrides log are round 1's. Apply what comes back:
+
+- **decided, `CHANGE: needed`** → back to `open`, with the decision as its **Decided** line. It is fixed next round, and this round **does not count as an attempt** — the fixer did its job by asking.
+- **decided, `CHANGE: none`** → `ruled-fine`. Nothing to fix.
+- **settled confirmed** → stays `open`, with the decider's `REPRO`. **Settled refuted** → `dropped`, with the evidence in the discarded file.
+- **escalate** → `escalated`. Check it against the bar exactly as step 6c says, then set it aside. The loop goes on without it.
+
+A finding a fixer sends back to 2b a second time, after it already had a decision, is `stuck`: the decision did not make it fixable.
 
 ### 3. Prove
 
@@ -128,7 +145,7 @@ Apply the verdicts:
 - **refuted, with `WHY` naming a line in the change** → `fixed`.
 - **refuted for another reason** → `fixed` is not earned; the original finding was wrong or the fix is incidental. Mark it `fixed`, but log the `CORRECTION` in the discarded file so the next round's finders look at that code fresh.
 - **confirmed** → the fix did not take. Revert that finding's hunks (`git checkout -- <files>` only when the group had one finding; otherwise hand the skeptic's `REPRO` to the next fixer and let it rework), add one attempt, back to `open`.
-- **unsettled** → `needs-decision`, with what would settle it.
+- **unsettled** → step 2b next round, with what would settle it.
 
 A live check was approved → after the skeptics, run pr-review step 6b's live checker once on the fixed findings the app can show. Reproduced in the app means not fixed, whatever the skeptic said.
 
@@ -165,7 +182,7 @@ New confirmed findings get new ids (`R2-1`, …) and go into the ledger as `open
 
 - a finding has failed **two** attempts → `stuck`;
 - **four** rounds have run;
-- every remaining finding is `needs-decision` or `stuck`.
+- every remaining finding is `escalated` or `stuck`.
 
 Otherwise, back to step 2 with the `open` findings.
 
@@ -178,11 +195,12 @@ The final report is pr-review's 7d report **for the whole PR as it now stands**,
 Then two sections the 7d template does not have, in the same shape and voice:
 
 - **🔧 Fixed by the loop · <n>** — one bullet per fixed finding: the plain-language title, then `↳ <commit short sha> · <the fixer's CHANGE sentence>`.
-- **🤔 Needs your decision** — pr-review's own section, now also holding the fixers' `needs-decision` questions and every `stuck` finding with both attempts' reasons in one line each.
+- **⚖️ Decided for you** — pr-review's own section, now also holding every `ruled-fine` decision from step 2b. Every **Decided** line on a fixed finding stays visible in its Fixed-by-the-loop bullet, as `↳ decided: <decision> · basis: <basis>`, so it can still be overruled.
+- **🤔 Needs your decision** — pr-review's own section: every `escalated` question, and every `stuck` finding with both attempts' reasons in one line each.
 
 The verdict is **✅ Approve** only when the loop ended green. Otherwise **🛑 Request changes**, and the reason names what is left.
 
-Print it whole, before any question. Then follow pr-review's [deliver step](../pr-review/reference/deliver.md) with the loop's answers already in hand: push if the user chose that at preflight (still ask first when the branch is not theirs), offer the PR comment, and record `pr-review.last-<n>`.
+Print it whole, before any question. When **Needs your decision** is not empty, the first question is for those: once the user answers, their answers become **Decided** lines and the loop runs again from step 2 — same ledger, same round cap reset to two more rounds. An overrule of anything in **Decided for you** or a Fixed-by-the-loop decision is handled the same way, and logged as pr-review's deliver step says. Then follow pr-review's [deliver step](../pr-review/reference/deliver.md) with the loop's answers already in hand: push if the user chose that at preflight (still ask first when the branch is not theirs), offer the PR comment, and record `pr-review.last-<n>`.
 
 Write the ledger's last state into the discarded-reasoning file, and point at it in the footer.
 

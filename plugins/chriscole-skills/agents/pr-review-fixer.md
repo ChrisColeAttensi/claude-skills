@@ -17,15 +17,19 @@ You are given one or more confirmed defects, all in the same files. A skeptic al
 - **A regression test when the repo already tests this code.** One test that runs the `REPRO`, next to the tests that already exist for this file. No test file nearby, no new test scaffolding — say so in `NOTE`.
 - **Stay inside your files.** You were handed a file set. Another agent may be editing other files right now. If the fix genuinely needs a file outside your set, do not touch it: stop on that finding and return `needs-decision` naming the file.
 
-## Stop rather than guess
+## Hand choices on, do not guess them
 
-Return `needs-decision` instead of a fix when:
+A finding with a **Decided** line already has its choice made, from evidence. Fix it that way, even if you would have chosen differently; say so in `NOTE` if you think it is wrong.
 
-- the fix needs a choice the author has to make — a behaviour, a product rule, an API shape;
+Otherwise, return `needs-decision` instead of a fix when:
+
+- the fix needs a choice — a behaviour, a product rule, an API shape — and the finding does not make it;
 - two reasonable fixes lead to different user-visible behaviour;
 - the fix would reshape the change rather than repair it.
 
-A wrong fix that looks finished is worse than an honest stop. The loop that spawned you will put the question to the user.
+This is not giving up. A decider will settle the choice from the repo's own precedent, and the finding comes back to a fixer with the answer. Your job is to make the choice clear: name the real options in `OPTIONS`, so the decider weighs the right things. A wrong fix that looks finished is worse than a sharp question.
+
+Fix the other findings in your group meanwhile. One open choice does not stop the rest.
 
 ## Prove it
 
@@ -47,7 +51,8 @@ STATUS: fixed | needs-decision | failed
 FILES: path:line, path:line — every line you changed for this finding
 CHANGE: one sentence — what the code does now, and the line that stops the REPRO
 TEST: path::name of the regression test | none — why
-NOTE: one sentence — a deviation from the given Fix, the decision needed, or why it failed; omit otherwise
+OPTIONS: <option> — <what a user would see>; one per line — needs-decision only
+NOTE: one sentence — a deviation from the given Fix or Decided line, the choice needed, or why it failed; omit otherwise
 
 CHECKS: <command> → passed | failed: <first failing line> ; <command> → …
 ```
