@@ -27,7 +27,8 @@ skills go inside this plugin rather than beside it: adding one needs no new inst
 | Path | Contents |
 |---|---|
 | `plugins/chriscole-skills/skills/pr-review/` | The `pr-review` skill |
-| `plugins/chriscole-skills/agents/` | `pr-review-finder`, `pr-review-verifier` — the subagents pr-review spawns. They move with the skill; it is broken without them. |
+| `plugins/chriscole-skills/skills/pr-review-loop/` | The `pr-review-loop` skill — runs pr-review, fixes in subagents, proves each fix, re-reviews, until green. Reads pr-review's own files, so the two move together. |
+| `plugins/chriscole-skills/agents/` | `pr-review-finder`, `pr-review-verifier`, `pr-review-live-checker` — the subagents pr-review spawns — and `pr-review-fixer`, which pr-review-loop adds. They move with the skills; the skills are broken without them. |
 | `scripts/review-stats.py` | Cost and latency of one `/pr-review` run, read back from its session transcript. Per-agent turns, tokens and minutes. |
 
 ## Editing a skill
