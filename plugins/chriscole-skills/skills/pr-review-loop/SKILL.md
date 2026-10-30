@@ -35,6 +35,8 @@ Three things it must not do, and the design follows from them:
 
 **pr-review cannot be invoked as a skill from here** — it sets `disable-model-invocation`. Read it and follow it: [../pr-review/SKILL.md](../pr-review/SKILL.md). Everything it says holds, except the overrides below.
 
+**Read it with the Read tool, whole, in one call — never `cat` it in a shell.** Bash cuts long output and drops the middle, and the middle is where the steps are. The same goes for every `reference/` file a pr-review step points at: read it when that step comes up, not before.
+
 ## Process
 
 **Models.** Same rule as pr-review: leave the `Agent` tool's `model` argument off every spawn, unless the invoker named a model — then pass it on every spawn, including the fixers.
