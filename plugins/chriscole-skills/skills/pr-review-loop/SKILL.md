@@ -1,6 +1,6 @@
 ---
 name: pr-review-loop
-description: Run /pr-review, then fix what it found in subagents, prove each fix with a skeptic, and review the fixes — round after round until the review comes back green or the loop hits something only a person can decide.
+description: Run /pr-review, then fix what it found in subagents test-first (red, then green), prove each fix with a skeptic, and review the fixes — round after round until the review comes back green or the loop hits something only a person can decide.
 disable-model-invocation: true
 model: opus
 ---
@@ -11,9 +11,9 @@ model: opus
 |---|---|---|
 | 0 | Preflight: target, clean tree, one round of questions | main session |
 | 1 | **Review** — pr-review steps 0 to 7, whole PR | main session + its agents |
-| 2 | **Fix** — one fixer per file-disjoint group, all at once | agents |
+| 2 | **Fix** — test first: one fixer per file-disjoint group, all at once, red then green | agents |
 | 2b | **Decide** — every choice a fixer handed back, one decider each | agents |
-| 3 | **Prove** — machine checks, then one skeptic per fix, all at once | main session + agents |
+| 3 | **Prove** — red check without the fix, machine checks, then one skeptic per fix | main session + agents |
 | 4 | Commit the round | main session |
 | 5 | **Re-review** — pr-review on this round's commit only | main session + its agents |
 | 6 | Green, stuck, or another round | main session |
@@ -25,7 +25,7 @@ model: opus
 
 Three things it must not do, and the design follows from them:
 
-- **Mark its own homework.** The agent that wrote a fix is the worst judge of it. So a fix is proved by the same skeptic that confirmed the defect, asked the same question against the new code. Refuted now means fixed.
+- **Mark its own homework.** The agent that wrote a fix is the worst judge of it. So every fix is test-driven — a test that fails on the defect is written and seen red before the fix, and seen green after — and the loop itself re-runs that test with the fix taken out, to see it fail for the right reason. Then the same skeptic that confirmed the defect is asked the same question against the new code. Red without the fix, green with it, and refuted now means fixed.
 - **Hide new damage.** A fix is new code. So every round's commit goes back through the full review — finders, skeptics, rulings — not just the checks.
 - **Spin.** A loop with no exit burns money politely. So every finding has an attempt budget and the loop has a round cap.
 
@@ -70,9 +70,9 @@ Nothing in Change before merge, build and tests green → the PR is already gree
 
 **Group the open findings by file.** Two findings that touch the same file, or a file and its direct caller, are one group. Groups must be disjoint — two fixers never hold the same file, because nothing stops one overwriting the other.
 
-Spawn one `pr-review-fixer` per group, **all in a single message**. The agent definition holds the contract; the prompt carries the specifics:
+Spawn one `pr-review-fixer` per group, **all in a single message**. The agent definition holds the contract — red, then green, per finding; the prompt carries the specifics:
 
-> Fix these confirmed defects in `<repo path>`. Your files: `<paths>`. Touch nothing else.
+> Fix these confirmed defects in `<repo path>`, test first: for each one, write a test from its Repro, run it and see it fail for the finding's reason, then make the smallest change that turns it green. Your files: `<paths>`, plus their test files. Touch nothing else.
 >
 > **Finding <id>:** <title>
 > `path:line`
@@ -89,6 +89,8 @@ Spawn one `pr-review-fixer` per group, **all in a single message**. The agent de
 > <the build and test commands pr-review step 2 found, narrowed to these files' project or module>
 > ```
 >
+> **Existing tests for these files:** `<test paths, or "none — nearest tests for this project: <path>">`
+>
 > **Standards digest for these files:**
 > ```
 > <the round-1 digest entries for these paths>
@@ -101,9 +103,9 @@ Spawn one `pr-review-fixer` per group, **all in a single message**. The agent de
 >
 > Return the schema from your instructions and nothing else.
 
-Copy the finding's bullets, do not re-summarise them. On a second attempt, add the reason the first one failed — the skeptic's `REPRO` against the fixed code, or the failing check line — under the finding, as **Last attempt failed because:**.
+Copy the finding's bullets, do not re-summarise them. Groups include their test files: two groups never share a test file either. On a second attempt, add the reason the first one failed — the skeptic's `REPRO` against the fixed code, the red check that passed, or the failing check line — under the finding, as **Last attempt failed because:**. The next fixer starts from red again.
 
-Apply the returns: `fixed` → step 3 proves it. `needs-decision` → step 2b, with the fixer's `OPTIONS`. `failed` → counts as an attempt; back to step 2 next round.
+Apply the returns: `fixed` with `RED` and `GREEN` filled in → step 3 proves it. `fixed` with `RED: none` → step 3 proves it without the red check, and the finding carries `no test` in the ledger and the report. `fixed` with a test but no `RED` line — the fixer did not see it fail — is not test-driven: treat it as `failed`, with that as the reason. `needs-decision` → step 2b, with the fixer's `OPTIONS`. `failed` → counts as an attempt; back to step 2 next round.
 
 ### 2b. Decide
 
@@ -120,9 +122,25 @@ A finding a fixer sends back to 2b a second time, after it already had a decisio
 
 ### 3. Prove
 
-**Machine first.** Run the repo's build and the full test suite, filtered, exactly as pr-review step 2 does. Fixers ran the narrow checks; this is the one that catches a fix in one group breaking another.
+**Red check first — the loop's own, not the fixer's word.** For each fixed finding with a test, take the fix out and run the test, so the test is proved to catch the defect and not just to pass. All fixers have returned, so the tree is quiet:
 
-A failure is a finding of its own, needs no skeptic, and joins the next round's fix list with the failing line as its `Repro`. Do not commit a red tree as if it were a round — go straight back to step 2 with it.
+```bash
+git diff -- <the finding's non-test FILES> > <scratch>/<id>.fix.patch
+git checkout -- <the finding's non-test FILES>
+<the fixer's RUN command> 2>&1 | tail -30   # must FAIL, for the finding's reason
+git apply <scratch>/<id>.fix.patch
+<the fixer's RUN command> 2>&1 | tail -30   # must PASS
+```
+
+Do it one finding at a time, and only when that finding's non-test files hold no other finding's hunks; otherwise revert the whole group's non-test files together and expect every one of the group's tests to fail. Check the patch re-applied (`git diff --stat` matches before) before moving on.
+
+- **Fails without the fix, for the finding's reason; passes with it** → red-green holds. On to the machine checks.
+- **Passes without the fix** → the test does not reach the defect, so it proves nothing. Not fixed: one attempt, back to `open`, with "test passes without the fix" as the reason.
+- **Fails without the fix for another reason** (compile error, missing import) → same: the test is not red for the right reason.
+
+**Machine next.** Run the repo's build and the full test suite, filtered, exactly as pr-review step 2 does. Fixers ran the narrow checks; this is the one that catches a fix in one group breaking another.
+
+A failure is a finding of its own, needs no skeptic, and joins the next round's fix list with the failing line as its `Repro` — the failing test is already its red, so its fixer goes straight to green. Do not commit a red tree as if it were a round — go straight back to step 2 with it.
 
 **Then one skeptic per fixed finding**, all in a single message. Reuse `pr-review-verifier` — it already knows how to try a claim against code. Same claim as before, against the code as it now stands:
 
@@ -135,8 +153,10 @@ A failure is a finding of its own, needs no skeptic, and joins the next round's 
 >
 > The code was changed to address this. The change:
 > ```diff
-> <git diff -- <the fixer's FILES>, for this finding's hunks>
+> <git diff -- <the fixer's FILES>, for this finding's hunks, test included>
 > ```
+>
+> **The regression test:** `<TEST>`, run with `<RUN>`. It failed without the change and passes with it. Judge whether it actually exercises the claim — a test that asserts something next to the fault proves nothing.
 >
 > Run the repro against the code as it is now. **Refuted** means the repro no longer reaches the fault — then `WHY` names the line in the change that stops it. Refuted for any other reason (unreachable, already handled elsewhere) is a different answer: say so in `CORRECTION`.
 
@@ -144,17 +164,17 @@ Apply the verdicts:
 
 - **refuted, with `WHY` naming a line in the change** → `fixed`.
 - **refuted for another reason** → `fixed` is not earned; the original finding was wrong or the fix is incidental. Mark it `fixed`, but log the `CORRECTION` in the discarded file so the next round's finders look at that code fresh.
-- **confirmed** → the fix did not take. Revert that finding's hunks (`git checkout -- <files>` only when the group had one finding; otherwise hand the skeptic's `REPRO` to the next fixer and let it rework), add one attempt, back to `open`.
+- **confirmed** → the fix did not take, and the test that went green missed it. Revert that finding's hunks, test included (`git checkout -- <files>` only when the group had one finding; otherwise hand the skeptic's `REPRO` to the next fixer and let it rework), add one attempt, back to `open`. The **Last attempt failed because** line says the old test passed while the fault remained, so the next test is written from the skeptic's REPRO.
 - **unsettled** → step 2b next round, with what would settle it.
 
 A live check was approved → after the skeptics, run pr-review step 6b's live checker once on the fixed findings the app can show. Reproduced in the app means not fixed, whatever the skeptic said.
 
 ### 4. Commit the round
 
-Only the fixers' files, never `git add -A`:
+Only the fixers' files — the fix and its test together, so the commit carries its own proof — never `git add -A`:
 
 ```bash
-git add <every FILES path from fixed findings>
+git add <every FILES path and TEST file from fixed findings>
 git commit -m "fix(review): <short titles, or 'round <k>: <n> findings'>"
 ```
 
@@ -194,7 +214,7 @@ The final report is pr-review's 7d report **for the whole PR as it now stands**,
 
 Then two sections the 7d template does not have, in the same shape and voice:
 
-- **🔧 Fixed by the loop · <n>** — one bullet per fixed finding: the plain-language title, then `↳ <commit short sha> · <the fixer's CHANGE sentence>`.
+- **🔧 Fixed by the loop · <n>** — one bullet per fixed finding: the plain-language title, then `↳ <commit short sha> · <the fixer's CHANGE sentence>`, then `↳ test: <TEST> · red → green`. A finding fixed without a test says `↳ ⚠️ no test — <why>` instead, so the user knows which fixes rest on the skeptic alone.
 - **⚖️ Decided for you** — pr-review's own section, now also holding every `ruled-fine` decision from step 2b. Every **Decided** line on a fixed finding stays visible in its Fixed-by-the-loop bullet, as `↳ decided: <decision> · basis: <basis>`, so it can still be overruled.
 - **🤔 Needs your decision** — pr-review's own section: every `escalated` question, and every `stuck` finding with both attempts' reasons in one line each.
 
@@ -212,4 +232,5 @@ pr-review's [failure modes](../pr-review/reference/failure-modes.md) hold. The l
 - **A fixer edited a file outside its set** → revert that file, mark the finding `failed`, and do not let it count against a group that did nothing wrong.
 - **The tree is dirty mid-loop for a reason the loop did not cause** — the user is editing too → stop. Say what changed and ask. Never commit over it.
 - **The build does not run here** → the loop cannot prove anything. Run round 1, then stop and fall back to pr-review's own step 8.
+- **The fix's patch does not re-apply after the red check** → stop. Restore from `<scratch>/<id>.fix.patch` by hand if it can be, say what happened, and never commit a tree the red check left half-reverted.
 - **Every fix is refuted for another reason** → the round-1 findings were weaker than they looked. Stop after that round and say so; do not keep fixing what was not broken.
