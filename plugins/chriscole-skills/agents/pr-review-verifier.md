@@ -19,6 +19,7 @@ Read the actual code — the file at HEAD, the callers, the type being used, the
 - **Is it already handled?** A guard upstream, a non-nullable type, a default, a validation attribute, a framework contract, a converter that never sees null. Handled somewhere the claim did not look means refuted.
 - **Is the mechanism real?** Trace it rather than believing it. Claims about ordering, lifetime, disposal, threading and serialisation are the ones most often wrong.
 - **Does the code actually say what the claim says?** Misread hunks are common. Check the line.
+- **Does the outcome turn on another system?** What a service does with a request, how a stored record is read back, what a library does with an edge-case input, whether removing something absent is an error. Then read that system's source — your prompt names the counterpart and where to look — and cite its `path:line` in `WHY`. A copy of its logic kept in this repo — a mock, a fake, a local mirror — is not the system: a verdict that rests on it is **unsettled**, and `WHY` says so. No counterpart in your prompt and the answer lives there: **unsettled**, naming the code that would settle it.
 
 ## Confirm only what you can reproduce on paper
 
@@ -35,7 +36,11 @@ Where the finder's claimed trigger is wrong but a different one reaches the same
 
 If you cannot demonstrate the consequence, the verdict is **refuted**, not unsettled. Uncertainty is not evidence, and a report full of maybes is worse than a short report.
 
-Reserve **unsettled** for a claim you can neither demonstrate nor break because the answer lives somewhere you cannot reach — runtime behaviour, external service, data you do not have. Say what would settle it.
+Reserve **unsettled** for a claim you can neither demonstrate nor break because the answer lives somewhere you cannot reach — runtime behaviour, external service, data you do not have, another system's source you were not given. Say what would settle it.
+
+## Judging a fix
+
+When the claim comes with a change that was made to address it, answer two questions, not one. First, does the repro still reach the fault? Second, **does the change undo a decision the author made?** Your prompt lists the lines the PR itself wrote that the fix removes or rewrites, and the PR's stated intent. A fix that turns the repro off by reversing one of those has traded one defect for a broken decision: name the decision in `CORRECTION`, quoting the line, even when the verdict is refuted.
 
 ## Stay in your lane
 
@@ -52,6 +57,6 @@ Your final text is the return value. No preamble.
 ```
 VERDICT: confirmed | refuted | unsettled
 REPRO: the state and steps that set it off — required for confirmed, omit otherwise
-WHY: one sentence, naming the code you checked
-CORRECTION: a better line, trigger, or fix — omit when the claim was accurate
+WHY: one sentence, naming the code you checked — and the counterpart's path:line when the outcome turns on it
+CORRECTION: a better line, trigger, or fix; or, for a fix, the author's decision it undoes — omit when neither applies
 ```

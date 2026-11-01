@@ -103,11 +103,23 @@ Spawn one `pr-review-fixer` per group, **all in a single message**. The agent de
 > <the round-1 Stated intent block, whole>
 > ```
 >
+> **Decisions in the code — comments this PR added in these files that state a choice. Fix inside them; reversing one is `needs-decision`:**
+> ```
+> <the round-1 4b entries for these paths, or "none">
+> ```
+>
+> **Counterpart — the other system's source, read-only:** `<path>`, version `<branch or tag>`; look in <where to look>. Omit when round 1 had none.
+>
 > Return the schema from your instructions and nothing else.
 
 Copy the finding's bullets, do not re-summarise them. Groups include their test files: two groups never share a test file either. On a second attempt, add the reason the first one failed — the skeptic's `REPRO` against the fixed code, the red check that passed, or the failing check line — under the finding, as **Last attempt failed because:**. The next fixer starts from red again.
 
 Apply the returns: `fixed` with `RED` and `GREEN` filled in → step 3 proves it. `fixed` with `RED: none` → step 3 proves it without the red check, and the finding carries `no test` in the ledger and the report. `fixed` with a test but no `RED` line — the fixer did not see it fail — is not test-driven: treat it as `failed`, with that as the reason. `needs-decision` → step 2b, with the fixer's `OPTIONS`. `failed` → counts as an attempt; back to step 2 next round.
+
+Two more fields, checked before step 3:
+
+- **`REVERSES` is not `none`** → the fix undid a line the author wrote. It is not proved yet: step 2b, with "keep the author's line" as one option and the fix as the other. A decision of `CHANGE: needed` lets the fix stand; anything else reverts it.
+- **`COUNTERPART: not checked`** on a fix that crosses a boundary, while round 1 had a counterpart → `failed`, with "the other system's handling was not read" as the reason. Without a counterpart at all, carry it as `counterpart unchecked` into the ledger and the report.
 
 ### 2b. Decide
 
@@ -140,6 +152,15 @@ Do it one finding at a time, and only when that finding's non-test files hold no
 - **Passes without the fix** → the test does not reach the defect, so it proves nothing. Not fixed: one attempt, back to `open`, with "test passes without the fix" as the reason.
 - **Fails without the fix for another reason** (compile error, missing import) → same: the test is not red for the right reason.
 
+**Then the author's lines — the loop's own check, not the fixer's `REVERSES`.** For each fixed finding, find the lines the fix removed or rewrote that the PR itself wrote:
+
+```bash
+git diff -U0 -- <the finding's non-test FILES> | grep -E '^(\+\+\+ |@@)'   # the old-side ranges each hunk touched
+git blame -s <fixed-point>..HEAD -L <start>,+<count> -- <file> | grep -v '^\^'   # no ^ = written by this PR
+```
+
+Any line that comes back and is not in the fixer's `REVERSES` → treat the return as if it had listed it: step 2b, as above. The ones that are listed go into the skeptic's prompt below.
+
 **Machine next.** Run the repo's build and the full test suite, filtered, exactly as pr-review step 2 does. Fixers ran the narrow checks; this is the one that catches a fix in one group breaking another.
 
 A failure is a finding of its own, needs no skeptic, and joins the next round's fix list with the failing line as its `Repro` — the failing test is already its red, so its fixer goes straight to green. Do not commit a red tree as if it were a round — go straight back to step 2 with it.
@@ -160,11 +181,17 @@ A failure is a finding of its own, needs no skeptic, and joins the next round's 
 >
 > **The regression test:** `<TEST>`, run with `<RUN>`. It failed without the change and passes with it. Judge whether it actually exercises the claim — a test that asserts something next to the fault proves nothing.
 >
+> **Lines this PR wrote that the change removes or rewrites:** <the author's-lines check above, each with what it said — or "none">
+> **Stated intent and Decisions in the code:** <the round-1 blocks for these files>
+> **Counterpart:** `<path>`, version `<branch or tag>`; the fixer cited `<COUNTERPART>`. Omit when round 1 had none.
+>
+> Two questions. Does the repro still reach the fault? And does the change undo anything the author decided — a line above, the stated intent, a comment? Name any such decision in `CORRECTION`, whatever the verdict.
+>
 > Run the repro against the code as it is now. **Refuted** means the repro no longer reaches the fault — then `WHY` names the line in the change that stops it. Refuted for any other reason (unreachable, already handled elsewhere) is a different answer: say so in `CORRECTION`.
 
 Apply the verdicts:
 
-- **refuted, with `WHY` naming a line in the change** → `fixed`.
+- **refuted, with `WHY` naming a line in the change** → `fixed` — unless `CORRECTION` names a decision the change undoes: then step 2b, with "keep the author's decision" as an option, before it can be `fixed`.
 - **refuted for another reason** → `fixed` is not earned; the original finding was wrong or the fix is incidental. Mark it `fixed`, but log the `CORRECTION` in the discarded file so the next round's finders look at that code fresh.
 - **confirmed** → the fix did not take, and the test that went green missed it. Revert that finding's hunks, test included (`git checkout -- <files>` only when the group had one finding; otherwise hand the skeptic's `REPRO` to the next fixer and let it rework), add one attempt, back to `open`. The **Last attempt failed because** line says the old test passed while the fault remained, so the next test is written from the skeptic's REPRO.
 - **unsettled** → step 2b next round, with what would settle it.
@@ -186,7 +213,7 @@ Follow the repo's commit convention when it has one (`git log --format=%s -15` s
 
 Run pr-review steps 1 to 7 again, **narrowed to this round's commit**: fixed point = the SHA before it. That is pr-review's incremental review, and the narrowing is real — the loop's fixes are the only new code, and round 1 already covered the rest.
 
-Reuse round 1's intent brief, digest and usage map instead of rebuilding them. Add one thing to every finder's prompt, under **Already raised**: every ledger entry for its files, with its state, so nobody re-reports a fixed finding as new or rediscovers an `adjacent` one.
+Reuse round 1's intent brief, digest, usage map, **Decisions in the code** and counterpart instead of rebuilding them. A round small enough for pr-review's inline path still gets them: read the commit against the stated intent and the decisions list yourself, and run the author's-lines check from step 3 on it. A small diff is where a reversed decision hides best. Add one thing to every finder's prompt, under **Already raised**: every ledger entry for its files, with its state, so nobody re-reports a fixed finding as new or rediscovers an `adjacent` one.
 
 New confirmed findings get new ids (`R2-1`, …) and go into the ledger as `open`.
 
@@ -216,7 +243,7 @@ The final report is pr-review's 7d report **for the whole PR as it now stands**,
 
 Then two sections the 7d template does not have, in the same shape and voice:
 
-- **🔧 Fixed by the loop · <n>** — one bullet per fixed finding: the plain-language title, then `↳ <commit short sha> · <the fixer's CHANGE sentence>`, then `↳ test: <TEST> · red → green`. A finding fixed without a test says `↳ ⚠️ no test — <why>` instead, so the user knows which fixes rest on the skeptic alone.
+- **🔧 Fixed by the loop · <n>** — one bullet per fixed finding: the plain-language title, then `↳ <commit short sha> · <the fixer's CHANGE sentence>`, then `↳ test: <TEST> · red → green`. A finding fixed without a test says `↳ ⚠️ no test — <why>` instead, so the user knows which fixes rest on the skeptic alone. A fix that crosses a boundary adds `↳ counterpart: <path:line> · <what it does with the new value>`, or `↳ ⚠️ counterpart not read`. A fix that changed a line the author wrote, with a decision allowing it, adds `↳ changes the author's line: "<what it said>" · decided: <decision>`.
 - **⚖️ Decided for you** — pr-review's own section, now also holding every `ruled-fine` decision from step 2b. Every **Decided** line on a fixed finding stays visible in its Fixed-by-the-loop bullet, as `↳ decided: <decision> · basis: <basis>`, so it can still be overruled.
 - **🤔 Needs your decision** — pr-review's own section: every `escalated` question, and every `stuck` finding with both attempts' reasons in one line each.
 

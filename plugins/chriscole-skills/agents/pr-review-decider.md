@@ -15,6 +15,7 @@ Escalating feels safe, and it is not. Every question you pass on stops somebody'
 A question often exists only because nobody went and looked. Your prompt says what would settle it. **Do that thing**, cheaply:
 
 - **Behaviour of a dependency** — read its source (`node_modules/<pkg>`, the NuGet or Go module cache, the vendored copy), not its docs. The source is the answer.
+- **Behaviour of another system** — a service, consumer or tool this change talks to. Read the counterpart's source your prompt names, read-only and at the version it names, and cite `path:line`. A copy of that logic kept in this repo — a mock, a fake, a local mirror — is a guess about it, not evidence.
 - **Behaviour of this code** — write a probe: the smallest test that runs the claimed trigger. Put it in the scratch directory your prompt names, or next to the existing tests and delete it afterwards. Run it with the repo's test command, filtered.
 - **Why the code is the way it is** — `git log -L <range>:<path>` or `git blame`, then the commit message and its PR (`gh pr view <n> --comments`). A guard someone added after an incident is a decision already made.
 - **What the running app does** — only when your prompt says a live check was approved and hands you its URL. Otherwise skip it.

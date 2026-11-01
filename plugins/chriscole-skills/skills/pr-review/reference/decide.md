@@ -31,6 +31,13 @@ A confirmed finding with one obvious fix is not a question. Leave it alone.
 > <the digest entries for this path>
 > ```
 >
+> **Decisions in the code — comments this PR added near here that state a choice:**
+> ```
+> <the 4b entries for this path, or "none">
+> ```
+>
+> **Counterpart:** `<path>`, version `<branch or tag>`; look in <where to look> — or "none"
+>
 > **Profile decision policy:** <quoted, or "none">
 >
 > **Overrides log — decisions this user has overruled before:**

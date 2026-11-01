@@ -77,6 +77,7 @@ A file, and you read it whole — it is short by construction — and fold it in
 | build and test commands | step 2, in place of guessing |
 | **extra passes** — another skill to run, a check only this repo needs | between step 4 and step 5, see below |
 | what to leave alone | drop those findings at step 7, and say the profile dropped them |
+| **counterparts** — the other systems this one depends on or feeds: where their source is, which version, where to look | step 4b's counterpart block, pasted into every agent |
 | a decision policy — what always gets asked, which choices a doc already rules | step 6c, pasted into every decider |
 | a house style for the report — no emoji, a required preamble, where the comment goes | step 7d, and step 8's comment |
 
@@ -199,6 +200,12 @@ Write the brief. Five parts, and the first is verbatim:
 - **Constraints** — decisions already made and defended: approach chosen, trade-off accepted, alternative rejected. Quote each.
 - **Already raised** — every review comment, one line: `path:line — <defect> — open | resolved`.
 
+**A body that claims parity with another system** — "checked against the backend", "matches the
+other client", "the consumer now accepts", "compatible with v3 of the library" — makes that system
+part of the review. Name it under
+Constraints, and step 4b's counterpart block is required, profile or not. A claim about a system
+nobody read is the claim most likely to be wrong.
+
 Done when the **Stated intent** block matches `gh pr view --json title,body` character for character, and every comment on the PR sits somewhere in the brief.
 
 No PR is fine: build the brief from the commits and any ticket the branch names. Step 7 handles the missing thread.
@@ -215,7 +222,7 @@ Assemble it **whole**, covering the diff. Step 5 hands each finder only the entr
 
 ### 4b. Build the surroundings, once
 
-Two facts decide most verdicts, and both are a shell command rather than a judgement. Compute them once here, paste them into every agent, and no finder or skeptic ever spends a turn rediscovering them. This is the cheapest confidence in the review.
+A few facts decide most verdicts, and each is a shell command rather than a judgement. Compute them once here, paste them into every agent, and no finder or skeptic ever spends a turn rediscovering them. This is the cheapest confidence in the review.
 
 **The usage map — who calls the changed code.** The commonest wrong finding is a fault behind a caller that does not exist. The commonest missed finding is a caller nobody thought to look at. Both are the same missing list:
 
@@ -248,6 +255,37 @@ done | sort | uniq -c | sort -rn | head -25
 Subtract the files this PR already touches. What is left, at the top, is a short list of "this normally moves with that". Most entries are noise — a shared barrel file, a lockfile. One or two are the question worth asking: the mapper that was not updated, the test file that did not move, the sibling that handles the other half of the enum.
 
 Cap it at the ten files above and skip it on a diff over ~40 files, where it stops being informative and starts being slow. It is a prompt for the finder, never a finding on its own — an unchanged file is not a defect until somebody says what breaks because of it.
+
+**The author's decisions in the code — what the PR chose, line by line.** The description says
+what the PR is for; the comments it adds say what it chose. "Deliberately not retried" is a
+design decision, and it lives in the diff, not the body:
+
+```bash
+git diff -U0 <fixed-point>...HEAD | grep -E '^(\+\+\+ |\+\s*(//|#|--|;|/?\*|<!--))' \
+  | grep -vE '^\+\s*(//|#|--|;|\*)\s*$' | head -80
+```
+
+Adjust the comment markers to the repo's languages when they differ.
+
+Keep the lines that state a choice — deliberate, never, always, stays, keeps, instead of, on
+purpose — with their file. Paste them, per area, as **Decisions in the code**. A finding that
+contradicts one is either wrong or a real defect in that decision, and the finder must say which.
+
+**The counterpart — the other side of every boundary this change crosses.** When the profile
+names counterparts, or step 3 found a parity claim, the behaviour a finding turns on often lives
+in another codebase: what a service does with a request, how a consumer reads a record, what a
+library does with an edge case. The counterpart can be a sibling clone, a vendored copy, or a
+dependency's installed source — the profile says where, and which version matters. Locate it
+once. For a git clone, read the version named without touching its checkout:
+
+```bash
+git -C <counterpart path> fetch -q origin <branch>
+git -C <counterpart path> grep -n <names that cross the boundary: endpoints, message types, field names> origin/<branch> | head -40
+```
+
+Read only — never check out, never edit. Paste the profile's where-to-look lines and these hits
+as a **counterpart** block into every agent. No counterpart named and no parity claim: skip
+this, and say nothing.
 
 ### 5. Find
 
@@ -294,6 +332,17 @@ The agent definition holds the finder's contract — the bar, the risk order, th
 > ```
 > Treat that as a question, not an answer. An unchanged file is a defect only when you can say what breaks because it stayed still.
 >
+> **Decisions in the code — comments this PR added that state a choice:**
+> ```
+> <the 4b list, filtered to this area's files, or "none">
+> ```
+>
+> **Counterpart — the other system's source, read-only at `<path>`, version `<branch or tag>`:**
+> ```
+> <where to look, and the 4b hits for this area — or "none">
+> ```
+> A finding about what the other system does with this change cites its `path:line` there.
+>
 > Return the schema from your instructions and nothing else.
 
 **Paste it, do not point at it.** All of that goes in the prompt body. A finder handed a path to
@@ -301,8 +350,8 @@ go and fetch reads it last, or not at all, and this context only earns its token
 finder's judgement before it opens the diff. The area patch is the one exception, because it is
 too big to paste and the finder cannot start without it.
 
-**Filter by area, never summarise.** The digest, the usage map, the omission list and **Already
-raised** are per-area: give each finder the entries that name its own files and drop the rest. A
+**Filter by area, never summarise.** The digest, the usage map, the omission list, **Decisions in
+the code**, the counterpart hits and **Already raised** are per-area: give each finder the entries that name its own files and drop the rest. A
 rule about the store is noise to the finder reading the routes, and the paste is competing with
 the diff for its attention. **Stated intent, goal, scope and constraints are never filtered and
 never paraphrased** — every finder gets them whole, verbatim block included. That is the part
@@ -330,6 +379,8 @@ Each prompt carries **one** claim and nothing else — no other findings, no vot
 > ```
 > <the relevant lines of the usage map>
 > ```
+>
+> **Counterpart — the other system's source, read-only:** `<path>`, version `<branch or tag>`; look in <where to look>. Omit when 4b had none.
 >
 > Read the file at HEAD and whatever else you need. Return the verdict schema from your instructions.
 

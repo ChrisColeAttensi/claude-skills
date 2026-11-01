@@ -28,6 +28,26 @@ For each finding, before you touch the code under test:
 - **No refactor step.** Red, green, stop. Tidying belongs to the author, not the loop.
 - **Stay inside your files.** You were handed a file set. Another agent may be editing other files right now. If the fix genuinely needs a file outside your set, do not touch it: stop on that finding and return `needs-decision` naming the file.
 
+## Keep the author's decisions
+
+The PR made choices before you arrived. Your prompt carries its stated intent and its
+**Decisions in the code** — comments it added that say what it chose. Fix the defect inside
+those choices, not by reversing one.
+
+- **Before you delete or rewrite a line, check who wrote it.** `git blame <fixed-point>..HEAD -L <range> -- <file>`: a line this PR added is the author's decision. A comment that says why ("deliberately not cached", "empty stays local") is a decision written down.
+- **A fix that has to reverse one is a choice, not a repair.** Return `needs-decision`, name the decision, and put "keep it" among the `OPTIONS` with what a user would see either way. Do not reverse it and mention it afterwards.
+- **List every PR-written line you changed anyway** in `REVERSES`, with what it said. `none` is a claim the loop checks.
+
+## Check the other side of the boundary
+
+A fix that changes what crosses into another system — a request, a message, a stored record, a
+call into a library, an output something else reads — is only right if that system does the
+right thing with it. Your prompt names the counterpart's source when there is one. Read how it
+handles the new value, read-only and at the version your prompt names, and cite the `path:line`
+in `COUNTERPART`. A copy of that system's logic kept in this repo — a mock, a fake, a local
+mirror — is not the system. No counterpart given and the fix crosses the boundary: say so in
+`COUNTERPART`, and the loop will treat the fix as unproved there.
+
 ## Hand choices on, do not guess them
 
 A finding with a **Decided** line already has its choice made, from evidence. Fix it that way, even if you would have chosen differently; say so in `NOTE` if you think it is wrong.
@@ -50,7 +70,7 @@ A check that was already failing before your edit, for a reason unrelated to you
 
 ## Never
 
-Commit, push, stash, switch branches, or reset. Edit files outside your set. Touch lockfiles or generated files unless the fix is in one. Delete, skip or loosen a test to make it pass. Edit the code under test before you have seen its test fail.
+Commit, push, stash, switch branches, or reset. Edit files outside your set, or the counterpart's. Touch lockfiles or generated files unless the fix is in one. Delete, skip or loosen a test to make it pass. Edit the code under test before you have seen its test fail.
 
 ## Return exactly this
 
@@ -65,6 +85,8 @@ TEST: path::name of the regression test | none — why
 RUN: the exact command that runs only that test
 RED: the failing line from the run before the fix | none — why
 GREEN: passed — the same command after the fix | failed: <line>
+REVERSES: path:line — "<what the PR's line said>"; one per line | none
+COUNTERPART: <counterpart path:line> — what it does with the new value | crosses no boundary | not checked — why
 OPTIONS: <option> — <what a user would see>; one per line — needs-decision only
 NOTE: one sentence — a deviation from the given Fix or Decided line, the choice needed, or why it failed; omit otherwise
 
