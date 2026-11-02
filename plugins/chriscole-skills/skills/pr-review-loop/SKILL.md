@@ -120,7 +120,15 @@ Apply the returns: `fixed` with `RED` and `GREEN` filled in → step 3 proves it
 
 Two more fields, checked before step 3:
 
-- **`REVERSES` is not `none`** → the fix undid a line the author wrote. It is **held**, and goes to step 2b with "keep the author's line" as one option and the fix as the other.
+- **`REVERSES` is not `none`** → the fix undid a line the author wrote. It is **held**, and goes to step 2b with "keep the author's line" as one option and the fix as the other — unless every line it lists is **covered**.
+
+**Covered** lines need no decision, and only these count:
+
+- the finding's own `Where` line, when what the finding says is wrong is that line's text — a false sentence, a wrong value;
+- a line the finding's **Decided** line names;
+- a carrier edit, where the author's line survives word for word in the new code — a trailing comma for an added argument, an expression moved unchanged into a variable.
+
+Anything else is held, even when the decision seems to imply it. "Implied" is where a fix slips past its decision: a line the decision does not name, rewritten in a way the decision did not say, is a new choice.
 - **`COUNTERPART: not checked`** on a fix that crosses a boundary, while round 1 had a counterpart → `failed`, with "the other system's handling was not read" as the reason. Without a counterpart at all, carry it as `counterpart unchecked` into the ledger and the report.
 
 ### 2b. Decide
@@ -153,7 +161,7 @@ Spawn one `pr-review-decider` per question, **all in a single message**, with pr
 
 **A held fix is decided by what the decision keeps, not by `CHANGE` alone.** Read its `DECISION`:
 
-- **the fix stands** → `git apply` the held patch next round, and it goes through step 3 again with the reversal accepted: the author's-lines check and the skeptic skip the lines this decision covers, so it is not held twice for the same line. The report shows it as `changes the author's line`.
+- **the fix stands** → `git apply` the held patch next round, and it goes through step 3 again with the reversal accepted: the author's-lines check treats the lines this decision names as covered, so it is not held twice for the same line; the skeptic still sees them, marked covered. The fixer's next prompt quotes those lines in the **Decided** line, so they stay covered. The report shows it as `changes the author's line`.
 - **the author's line stays, and the defect still needs fixing** (`CHANGE: needed`) → discard the patch; the finding goes back to `open` with "keep the author's line" in its **Decided** line, so the next fixer works inside it.
 - **the author's line stays, and the defect is acceptable** (`CHANGE: none`) → discard the patch; `ruled-fine`.
 
@@ -188,7 +196,7 @@ git blame -s -l <fixed-point>..<rev> -L <line>,+<count> -- <file> \
 
 `<fixed-point>` is the PR's, from step 1 — never a later round's. What comes back is a line from a commit after it that is not one of the loop's own (`<start>..<rev>`): the author's. The `awk` rather than `grep -vF -f`: with no loop commits yet the pattern list is empty, and some greps then print nothing.
 
-Any line that comes back and is not in the fixer's `REVERSES` → treat the return as if it had listed it: the fix is held, as step 2b says. A fix that is not held changed none of the author's lines, so the skeptic's prompt below says "none" for it.
+Any line that comes back and is not in the fixer's `REVERSES` → treat the return as if it had listed it: the fix is held, as step 2b says, unless the line is covered (step 2). Covered lines still go into the skeptic's prompt below, each marked with what covers it, so the skeptic judges the rewrite against the decision rather than taking it on trust. A fix that is not held and covers nothing changed none of the author's lines, so the prompt says "none" for it.
 
 **Machine next.** Run the repo's build and the full test suite, filtered, exactly as pr-review step 2 does. Fixers ran the narrow checks; this is the one that catches a fix in one group breaking another.
 
@@ -244,7 +252,7 @@ Follow the repo's commit convention when it has one (`git log --format=%s -15` s
 
 Run pr-review steps 1 to 7 again, **narrowed to this round's commit**: fixed point = the SHA before it. That is pr-review's incremental review, and the narrowing is real — the loop's fixes are the only new code, and round 1 already covered the rest.
 
-Reuse round 1's intent brief, digest, usage map, **Decisions in the code** and counterpart instead of rebuilding them. A round small enough for pr-review's inline path still gets them: read the commit against the stated intent and the decisions list yourself, and run the author's-lines check from step 3 on it, with `<rev>` = the SHA before the round's commit and the diff `git diff -U0 <rev> <round-k-sha>`. Keep `<fixed-point>` the PR's: the re-review's own fixed point would put every line the author wrote outside the range, and the check would come back empty. A small diff is where a reversed decision hides best. Add one thing to every finder's prompt, under **Already raised**: every ledger entry for its files, with its state, so nobody re-reports a fixed finding as new or rediscovers an `adjacent` one.
+Reuse round 1's intent brief, digest, usage map, **Decisions in the code** and counterpart instead of rebuilding them. A round small enough for pr-review's inline path still gets them: read the commit against the stated intent and the decisions list yourself, and run the author's-lines check from step 3 on it, with `<rev>` = the SHA before the round's commit and the diff `git diff -U0 <rev> <round-k-sha>`. Keep `<fixed-point>` the PR's: the re-review's own fixed point would put every line the author wrote outside the range, and the check would come back empty. A line already ruled covered, or already decided, in step 3 is not raised again here. A small diff is where a reversed decision hides best. Add one thing to every finder's prompt, under **Already raised**: every ledger entry for its files, with its state, so nobody re-reports a fixed finding as new or rediscovers an `adjacent` one.
 
 New confirmed findings get new ids (`R2-1`, …) and go into the ledger as `open`.
 
