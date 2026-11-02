@@ -30,7 +30,7 @@ Three things it must not do, and the design follows from them:
 
 - **Mark its own homework.** The agent that wrote a fix is the worst judge of it. So every fix is test-driven — a test that fails on the defect is written and seen red before the fix, and seen green after — and the loop itself re-runs that test with the fix taken out, to see it fail for the right reason. Then the same skeptic that confirmed the defect is asked the same question against the new code. Red without the fix, green with it, and refuted now means fixed.
 - **Hide new damage.** A fix is new code. So every round's commit goes back through the full review — finders, skeptics, rulings — not just the checks.
-- **Ship a broken PR.** Every round checks its own commit, and no round checks the PR the user will merge: all the rounds at once, against what the PR was for. So the loop ends with pr-review's verify step on the final commit — full build and suite against the baseline, every regression test, the fixes read together against the stated intent, the premise in the app — and nothing is green, or pushed, until it passes.
+- **Ship a broken PR.** Every round checks its own commit, and no round checks the PR the user will merge: all the rounds at once, against what the PR was for. So the loop ends with pr-review's verify step on the final commit — the full suite with every fix's test in it, the fixes read together against the stated intent when more than one round committed, the premise in the app — and nothing is green, or pushed, until it passes.
 - **Spin.** A loop with no exit burns money politely. So every finding has an attempt budget and the loop has a round cap.
 
 **And it must not stall on questions.** A fix that needs a choice goes to `pr-review-decider`, which settles it from the repo's own evidence — intent, written rules, the user's past overrules, precedent, then the safe default — and the finding comes back with its answer. Only a question that clears the decider's bar (irreversible, security, or user-visible with no evidence either way) waits for the user, and even that is set aside rather than stopping the loop. Everything else keeps moving; the user gets the leftover questions together, once, at the end.
@@ -239,7 +239,7 @@ Apply the verdicts:
 - **confirmed** → the fix did not take, and the test that went green missed it. Revert that finding's hunks, test included, with step 2b's hold commands minus the saved patch — `git add -N <new files>`, then `git diff -- <files> | git apply -R`, then `git rm -q --cached <new files>`. `git checkout` leaves a new test file behind, and step 4 would commit it without its fix. When its files hold another finding's hunks too, revert nothing; those files stay out of this round's commit, and the next fixer reworks them from the skeptic's `REPRO`. A fixed finding in those files stays `fixed`, and its commit is the round that commits the file. Add one attempt, back to `open`. The **Last attempt failed because** line says the old test passed while the fault remained, so the next test is written from the skeptic's REPRO.
 - **unsettled** → step 2b next round, with what would settle it.
 
-A live check was approved → after the skeptics, run pr-review step 6b's live checker once on the fixed findings the app can show. Reproduced in the app means not fixed, whatever the skeptic said.
+A live check was approved → the app is not driven here, round by round. Step 7's verify drives it once, at the final commit, on the premise and every fixed finding together. Reproduced in the app there means not fixed, whatever the skeptic said.
 
 ### 4. Commit the round
 
@@ -286,11 +286,11 @@ Say one line per round as it ends, in the user's terms, so the transcript shows 
 
 ### 7. Verify
 
-Read pr-review's [reference/verify.md](../pr-review/reference/verify.md) and follow it, at the last round's commit, with `<start>` from preflight and the round-1 baseline, intent brief, digest, usage map, **Decisions in the code** and counterpart. Fixed findings' `TEST` and `RUN` lines are V2's list.
+Read pr-review's [reference/verify.md](../pr-review/reference/verify.md) and follow it, at the last round's commit, with `<start>` from preflight and round 1's baseline, Stated intent, usage map, **Decisions in the code** and counterpart. Fixed findings' `TEST` lines are what V1 looks for in the suite's output.
 
 - **Passes** → **green**. On to step 8.
 - **Fails, after a converged loop** → every failure goes into the ledger as `V<k>-<n>`, `open`, and the loop goes back to step 2 — then 3, 4, 5, 6, and step 7 again. Verify does not reset the round cap: a failure on round four is a stop, not a fifth round.
-- **Fails, after a stop** → no new round. The failures go in the report under **Change before merge**, each naming the fix commit that caused it (verify.md's single-review bisect, report only — revert nothing the user has not seen). The verdict says the loop's own commits broke something, and the first question at step 8 is whether to revert them.
+- **After a stop** → V1 only. No round can follow, and V1 is the question the user needs answered: did the loop's commits leave the tree worse? A V1 failure goes in the report under **Change before merge**, naming the round commit that caused it — find it as verify.md's single-review bisect does, a round commit at a time, report only; revert nothing the user has not seen. The verdict says the loop's own commits broke something, and the first question at step 8 is whether to revert them.
 
 Say one line when it ends: `Verify: build and 412 tests green, 6 fix tests green, fixes read together — no regression.` or what failed.
 
