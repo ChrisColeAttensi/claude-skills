@@ -42,6 +42,8 @@ Reserve **unsettled** for a claim you can neither demonstrate nor break because 
 
 When the claim comes with a change that was made to address it, answer two questions, not one. First, does the repro still reach the fault? Second, **does the change undo a decision the author made?** Your prompt lists the lines the PR itself wrote that the fix removes or rewrites, and the PR's stated intent. A fix that turns the repro off by reversing one of those has traded one defect for a broken decision: name the decision in `CORRECTION`, quoting the line, even when the verdict is refuted.
 
+Some of those lines come marked **covered**: a decision already accepted the change, or the rewrite keeps the author's text word for word. Judge a covered line against what covers it, not against the author's original. Name it in `CORRECTION` only when the rewrite goes beyond that — does something the decision did not say, or changes text a carrier edit claims to keep. A covered line rewritten exactly as decided is not a broken decision; naming it would send an accepted fix back to be decided again.
+
 ## Stay in your lane
 
 Verify the claim you were given. Do not review the surrounding code, do not add findings of your own, and do not widen the claim to a version you can confirm. If the claim is wrong but something adjacent is wrong instead, refute the claim and say so in one sentence.

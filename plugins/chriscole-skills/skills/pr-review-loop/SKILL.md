@@ -62,7 +62,7 @@ Run pr-review steps 0 to 7, on the whole PR, as written. Print the report, whole
 
 - **Skip pr-review step 8.** No fix-or-comment question; the loop is the answer to it.
 - **Keep the intent brief, the standards digest and the usage map** from this round. Later rounds reuse them rather than rebuilding.
-- **Keep a ledger** in `<scratch>/pr-<n>-loop.md`. One line per finding, for the whole loop: `#<id> · path:line · <title> · <state> · attempts <k>`. States: `open`, `fixed`, `ruled-fine`, `escalated`, `stuck`, `adjacent`, `dropped`. An `open` finding may carry a decision; copy its **Decided** line into the ledger entry. Give each finding a stable id now (`R1-1`, `R1-2`, …) and never renumber.
+- **Keep a ledger** in `<scratch>/pr-<n>-loop.md`. One line per finding, for the whole loop: `#<id> · path:line · <title> · <state> · attempts <k>`. States: `open`, `held` (a fix saved out of the tree, waiting on step 2b), `fixed`, `ruled-fine`, `escalated`, `stuck`, `adjacent`, `dropped`. An `open` finding may carry a decision; copy its **Decided** line into the ledger entry. Give each finding a stable id now (`R1-1`, `R1-2`, …) and never renumber.
 
 **What the loop fixes** — only **Change before merge**, decided ones included. pr-review's step 6c has already run, so **Decided for you** goes in as `ruled-fine` and **Needs your decision** as `escalated` — that one already cleared the bar, and nobody in the loop gets to decide it. **Worth its own PR** goes to `adjacent` and stays out, as pr-review's deliver step says: a fix to code this PR did not touch grows the diff the author has to defend.
 
@@ -121,6 +121,7 @@ Apply the returns: `fixed` with `RED` and `GREEN` filled in → step 3 proves it
 Two more fields, checked before step 3:
 
 - **`REVERSES` is not `none`** → the fix undid a line the author wrote. It is **held**, and goes to step 2b with "keep the author's line" as one option and the fix as the other — unless every line it lists is **covered**.
+- **`COUNTERPART: not checked`** on a fix that crosses a boundary, while round 1 had a counterpart → `failed`, with "the other system's handling was not read" as the reason. Without a counterpart at all, carry it as `counterpart unchecked` into the ledger and the report.
 
 **Covered** lines need no decision, and only these count:
 
@@ -129,7 +130,6 @@ Two more fields, checked before step 3:
 - a carrier edit, where the author's line survives word for word in the new code — a trailing comma for an added argument, an expression moved unchanged into a variable.
 
 Anything else is held, even when the decision seems to imply it. "Implied" is where a fix slips past its decision: a line the decision does not name, rewritten in a way the decision did not say, is a new choice.
-- **`COUNTERPART: not checked`** on a fix that crosses a boundary, while round 1 had a counterpart → `failed`, with "the other system's handling was not read" as the reason. Without a counterpart at all, carry it as `counterpart unchecked` into the ledger and the report.
 
 ### 2b. Decide
 
@@ -172,8 +172,9 @@ A finding a fixer sends back to 2b a second time, after it already had a decisio
 **Red check first — the loop's own, not the fixer's word.** For each fixed finding with a test, take the fix out and run the test, so the test is proved to catch the defect and not just to pass. All fixers have returned, so the tree is quiet:
 
 ```bash
+git add -N <the finding's new non-test files>           # a new helper is untracked; carry it too
 git diff -- <the finding's non-test FILES> > <scratch>/<id>.fix.patch
-git checkout -- <the finding's non-test FILES>
+git apply -R <scratch>/<id>.fix.patch                   # git checkout would leave a new file behind
 <the fixer's RUN command> 2>&1 | tail -30   # must FAIL, for the finding's reason
 git apply <scratch>/<id>.fix.patch
 <the fixer's RUN command> 2>&1 | tail -30   # must PASS
@@ -218,7 +219,8 @@ A failure is a finding of its own, needs no skeptic, and joins the next round's 
 >
 > **The regression test:** `<TEST>`, run with `<RUN>`. It failed without the change and passes with it. Judge whether it actually exercises the claim — a test that asserts something next to the fault proves nothing.
 >
-> **Lines this PR wrote that the change removes or rewrites:** <the author's-lines check above, each with what it said — or "none">
+> **Lines this PR wrote that the change removes or rewrites:** <the author's-lines check above, each with what it said and, when covered, what covers it: "the finding's own line", "named in Decided", or "carrier edit" — or "none">
+> **Decided:** <the finding's Decided line, copied — or "none">
 > **Stated intent and Decisions in the code:** <the round-1 blocks for these files>
 > **Counterpart:** `<path>`, version `<branch or tag>`; the fixer cited `<COUNTERPART>`. Omit when round 1 had none.
 >
