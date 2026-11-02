@@ -21,6 +21,7 @@ model: opus
 | 6c | **Decide** — settle or decide every open question, escalate only what must be | agents, one per question |
 | 7 | Rule on intent and on reach, then report | main session |
 | 8 | Fix or comment | main session |
+| 9 | **Verify** — the whole PR, after any fix; nothing is green until it passes | main session + agents |
 
 ## Why it is built this way
 
@@ -181,6 +182,9 @@ dotnet test <test project> 2>&1 | tail -30
 A compiler error or a failing test is a blocking finding on its own, needs no verification, and goes straight to the report. An analyzer warning is a documented-standard breach: report it as a finding and do not ask an agent to look for style problems the toolchain already found.
 
 Skip this step only when the repo has no build or test command to run. Say so if you skip it.
+
+**Keep the result** — the commands, which tests failed, which warnings fired — in
+`<scratch>/pr-<n>-baseline.txt`. It is the baseline step 9 compares the fixed tree against.
 
 ### 3. Read the PR into an intent brief
 
@@ -519,6 +523,15 @@ Read [reference/deliver.md](./reference/deliver.md) now, and follow it. It rules
 comment, on where the fix lands, and on the comment's shape — then records where this review
 reached, so the next one can start here.
 
+### 9. Verify
+
+**Review → fix → verify.** Each fix was checked alone; the PR the user ships is all of them at
+once. Whenever step 8 changed code, read [reference/verify.md](./reference/verify.md) now and
+follow it, before anything is pushed and before the verdict is restated. Only a verify that passes
+makes the verdict **✅ Approve**. A failing one reverts the fix that caused it and says so.
+
+Step 8 only commented: nothing changed, skip this step and say nothing about it.
+
 ## When something goes wrong
 
 Read [reference/failure-modes.md](./reference/failure-modes.md) — do not improvise past one of
@@ -529,4 +542,5 @@ refuted · a skeptic confirms a finding by widening it · a finder returns prose
 schema · the PR has no description · the profile names a command or skill that does not exist ·
 a profile pass wants something interactive · 7a dropped every finding · the usage map is empty
 for a changed file · every confirmed finding has a vague `REPRO` · the diff is empty · every
-decider escalates · a decider left the working tree dirty · the user overrules most of the decisions.
+decider escalates · a decider left the working tree dirty · the user overrules most of the decisions ·
+verify fails and no single fix is the cause · CI goes red after verify passed locally.

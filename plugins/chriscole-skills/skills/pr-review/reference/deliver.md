@@ -26,9 +26,13 @@ Step 6c feeds that log to every decider, so the next review leans their way. Whe
 
 Recommend one in a sentence, with the reason. Then ask: fix these now, post the comment, or fix and post a short note? Ask about the nearby list separately, and name the tracker if the repo has one.
 
-Where the fix **lands** is a separate question, answered after the user picks — never a reason not to do the work. Editing and running checks is local and reversible on any branch. Push when the branch takes our push; otherwise offer `git format-patch`, a branch to pull, or a diff in the comment. Ask before pushing to a branch that is not ours.
+Where the fix **lands** is a separate question, answered after the user picks — never a reason not to do the work. Editing and running checks is local and reversible on any branch. Push when the branch takes our push and step 9 has passed; otherwise offer `git format-patch`, a branch to pull, or a diff in the comment. Ask before pushing to a branch that is not ours.
 
 **On fix** — one finding at a time, run the checks, report per finding what changed. Anything left alone goes into the comment with the reason.
+
+- Record `HEAD` before the first edit as `<start>`. The tree must be clean then too — never sweep the user's unfinished work into a fix commit.
+- **One commit per finding**, its test with it when it has one: `fix(review): <title>`, the repo's convention when it has one. Step 9 reverts a single fix by its commit, so two findings in one commit cannot be told apart.
+- **Then step 9, before anything leaves this machine.** Push, and the "done" line, wait on a verify that passed. A push that goes out first ships a tree nobody has run whole.
 
 **On comment** — the same plain language, and **the same layout as 7d**, with three changes for the thread:
 

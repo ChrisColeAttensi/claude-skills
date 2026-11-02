@@ -1,6 +1,6 @@
 ---
 name: pr-review-loop
-description: Run /pr-review, then fix what it found in subagents test-first (red, then green), prove each fix with a skeptic, and review the fixes — round after round until the review comes back green or the loop hits something only a person can decide.
+description: Run /pr-review, then fix what it found in subagents test-first (red, then green), prove each fix with a skeptic, and review the fixes — round after round until the review comes back clean, then verify the whole PR at the final commit; green only when that verify passes, or stop at something only a person can decide.
 disable-model-invocation: true
 model: opus
 ---
@@ -16,8 +16,11 @@ model: opus
 | 3 | **Prove** — red check without the fix, machine checks, then one skeptic per fix | main session + agents |
 | 4 | Commit the round | main session |
 | 5 | **Re-review** — pr-review on this round's commit only | main session + its agents |
-| 6 | Green, stuck, or another round | main session |
-| 7 | Report, then deliver | main session |
+| 6 | Converged, stuck, or another round | main session |
+| 7 | **Verify** — the whole PR at the final commit; only a pass is green | main session + agents |
+| 8 | Report, then deliver | main session |
+
+Review → fix → review → fix … → **verify**. The rounds converge; verify is what makes it green.
 
 ## Why it is built this way
 
@@ -27,6 +30,7 @@ Three things it must not do, and the design follows from them:
 
 - **Mark its own homework.** The agent that wrote a fix is the worst judge of it. So every fix is test-driven — a test that fails on the defect is written and seen red before the fix, and seen green after — and the loop itself re-runs that test with the fix taken out, to see it fail for the right reason. Then the same skeptic that confirmed the defect is asked the same question against the new code. Red without the fix, green with it, and refuted now means fixed.
 - **Hide new damage.** A fix is new code. So every round's commit goes back through the full review — finders, skeptics, rulings — not just the checks.
+- **Ship a broken PR.** Every round checks its own commit, and no round checks the PR the user will merge: all the rounds at once, against what the PR was for. So the loop ends with pr-review's verify step on the final commit — full build and suite against the baseline, every regression test, the fixes read together against the stated intent, the premise in the app — and nothing is green, or pushed, until it passes.
 - **Spin.** A loop with no exit burns money politely. So every finding has an attempt budget and the loop has a round cap.
 
 **And it must not stall on questions.** A fix that needs a choice goes to `pr-review-decider`, which settles it from the repo's own evidence — intent, written rules, the user's past overrules, precedent, then the safe default — and the finding comes back with its answer. Only a question that clears the decider's bar (irreversible, security, or user-visible with no evidence either way) waits for the user, and even that is set aside rather than stopping the loop. Everything else keeps moving; the user gets the leftover questions together, once, at the end.
@@ -66,7 +70,7 @@ Run pr-review steps 0 to 7, on the whole PR, as written. Print the report, whole
 
 **What the loop fixes** — only **Change before merge**, decided ones included. pr-review's step 6c has already run, so **Decided for you** goes in as `ruled-fine` and **Needs your decision** as `escalated` — that one already cleared the bar, and nobody in the loop gets to decide it. **Worth its own PR** goes to `adjacent` and stays out, as pr-review's deliver step says: a fix to code this PR did not touch grows the diff the author has to defend.
 
-Nothing in Change before merge, build and tests green → the PR is already green. Skip to step 7.
+Nothing in Change before merge, build and tests green → the PR is already green, and the loop changed nothing, so there is nothing to verify. Skip to step 8.
 
 ### 2. Fix
 
@@ -260,9 +264,9 @@ New confirmed findings get new ids (`R2-1`, …) and go into the ledger as `open
 
 **Oscillation:** a new finding that is the original fault of an earlier `fixed` one, come back in another shape, means two fixes are fighting. Mark both `stuck` and stop fixing that code.
 
-### 6. Green, stuck, or another round
+### 6. Converged, stuck, or another round
 
-**Green** — every one of these:
+**Converged** — every one of these. It is not green yet; it goes to step 7:
 
 - no `open` finding left;
 - build and tests pass on the last commit;
@@ -274,11 +278,23 @@ New confirmed findings get new ids (`R2-1`, …) and go into the ledger as `open
 - **four** rounds have run;
 - every remaining finding is `escalated` or `stuck`.
 
+Stopping still goes through step 7 when any round committed: the report must say whether the commits the loop leaves behind broke anything, even when it is not green.
+
 Otherwise, back to step 2 with the `open` findings.
 
 Say one line per round as it ends, in the user's terms, so the transcript shows where the loop is: `Round 2: fixed 3 of 4, 1 new finding from the re-review, build green.`
 
-### 7. Report, then deliver
+### 7. Verify
+
+Read pr-review's [reference/verify.md](../pr-review/reference/verify.md) and follow it, at the last round's commit, with `<start>` from preflight and the round-1 baseline, intent brief, digest, usage map, **Decisions in the code** and counterpart. Fixed findings' `TEST` and `RUN` lines are V2's list.
+
+- **Passes** → **green**. On to step 8.
+- **Fails, after a converged loop** → every failure goes into the ledger as `V<k>-<n>`, `open`, and the loop goes back to step 2 — then 3, 4, 5, 6, and step 7 again. Verify does not reset the round cap: a failure on round four is a stop, not a fifth round.
+- **Fails, after a stop** → no new round. The failures go in the report under **Change before merge**, each naming the fix commit that caused it (verify.md's single-review bisect, report only — revert nothing the user has not seen). The verdict says the loop's own commits broke something, and the first question at step 8 is whether to revert them.
+
+Say one line when it ends: `Verify: build and 412 tests green, 6 fix tests green, fixes read together — no regression.` or what failed.
+
+### 8. Report, then deliver
 
 The final report is pr-review's 7d report **for the whole PR as it now stands**, `<base>` → `HEAD`, with the verdict reflecting the end state. Round 1 covered the original change and every later round covered its own commit, so together they cover everything. Say so in the facts row: `🔁 <k> rounds · <n> fixed in <c> commits`.
 
@@ -288,9 +304,9 @@ Then two sections the 7d template does not have, in the same shape and voice:
 - **⚖️ Decided for you** — pr-review's own section, now also holding every `ruled-fine` decision from step 2b. Every **Decided** line on a fixed finding stays visible in its Fixed-by-the-loop bullet, as `↳ decided: <decision> · basis: <basis>`, so it can still be overruled.
 - **🤔 Needs your decision** — pr-review's own section: every `escalated` question, and every `stuck` finding with both attempts' reasons in one line each.
 
-The verdict is **✅ Approve** only when the loop ended green. Otherwise **🛑 Request changes**, and the reason names what is left.
+The verdict is **✅ Approve** only when the loop ended green — converged, and step 7's verify passed at the commit being reported. The facts row carries `🔬 verify **passed** at <sha>`. Otherwise **🛑 Request changes**, and the reason names what is left; a verify failure names what the fixes broke.
 
-Print it whole, before any question. When **Needs your decision** is not empty, the first question is for those: once the user answers, their answers become **Decided** lines and the loop runs again from step 2 — same ledger, same round cap reset to two more rounds. An overrule of anything in **Decided for you** or a Fixed-by-the-loop decision is handled the same way, and logged as pr-review's deliver step says. Then follow pr-review's [deliver step](../pr-review/reference/deliver.md) with the loop's answers already in hand: push if the user chose that at preflight (still ask first when the branch is not theirs), offer the PR comment, and record `pr-review.last-<n>`.
+Print it whole, before any question. When **Needs your decision** is not empty, the first question is for those: once the user answers, their answers become **Decided** lines and the loop runs again from step 2 — same ledger, same round cap reset to two more rounds. An overrule of anything in **Decided for you** or a Fixed-by-the-loop decision is handled the same way, and logged as pr-review's deliver step says. Then follow pr-review's [deliver step](../pr-review/reference/deliver.md) with the loop's answers already in hand: push if the user chose that at preflight **and verify passed** (still ask first when the branch is not theirs), offer the PR comment, and record `pr-review.last-<n>`. A loop that did not end green never pushes, whatever preflight said. After a push, verify.md's **Pushed** section runs: CI on the pushed SHA gets the last word, and red CI is a verify failure — one more round if the cap allows, otherwise the verdict is restated as not green.
 
 Write the ledger's last state into the discarded-reasoning file, and point at it in the footer.
 
@@ -301,6 +317,6 @@ pr-review's [failure modes](../pr-review/reference/failure-modes.md) hold. The l
 - **`pr-review-fixer` is missing** → spawn `general-purpose` with the fixer's contract pasted in, and say so, as pr-review does for its own agents.
 - **A fixer edited a file outside its set** → revert that file, mark the finding `failed`, and do not let it count against a group that did nothing wrong.
 - **The tree is dirty mid-loop for a reason the loop did not cause** — the user is editing too → stop. Say what changed and ask. Never commit over it.
-- **The build does not run here** → the loop cannot prove anything. Run round 1, then stop and fall back to pr-review's own step 8.
+- **The build does not run here** → the loop cannot prove anything, and verify cannot pass. Run round 1, then stop and fall back to pr-review's own step 8 — and since its step 9 cannot run V1 either, any fix made there leaves the verdict at Request changes, with `🔬 verify **not run** — build does not run here`.
 - **The fix's patch does not re-apply after the red check** → stop. Restore from `<scratch>/<id>.fix.patch` by hand if it can be, say what happened, and never commit a tree the red check left half-reverted.
 - **Every fix is refuted for another reason** → the round-1 findings were weaker than they looked. Stop after that round and say so; do not keep fixing what was not broken.
