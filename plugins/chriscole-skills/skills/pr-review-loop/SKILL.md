@@ -222,7 +222,7 @@ Apply the verdicts:
 
 - **refuted, with `WHY` naming a line in the change** → `fixed` — unless `CORRECTION` names a decision the change undoes: then the fix is held, as step 2b says, with "keep the author's decision" as an option.
 - **refuted for another reason** → `fixed` is not earned; the original finding was wrong or the fix is incidental. Mark it `fixed`, but log the `CORRECTION` in the discarded file so the next round's finders look at that code fresh.
-- **confirmed** → the fix did not take, and the test that went green missed it. Revert that finding's hunks, test included (`git checkout -- <files>` only when the group had one finding; otherwise hand the skeptic's `REPRO` to the next fixer and let it rework), add one attempt, back to `open`. The **Last attempt failed because** line says the old test passed while the fault remained, so the next test is written from the skeptic's REPRO.
+- **confirmed** → the fix did not take, and the test that went green missed it. Revert that finding's hunks, test included, with step 2b's hold commands minus the saved patch — `git add -N <new files>`, then `git diff -- <files> | git apply -R`, then `git rm -q --cached <new files>`. `git checkout` leaves a new test file behind, and step 4 would commit it without its fix. When its files hold another finding's hunks too, revert nothing; those files stay out of this round's commit, and the next fixer reworks them from the skeptic's `REPRO`. A fixed finding in those files stays `fixed`, and its commit is the round that commits the file. Add one attempt, back to `open`. The **Last attempt failed because** line says the old test passed while the fault remained, so the next test is written from the skeptic's REPRO.
 - **unsettled** → step 2b next round, with what would settle it.
 
 A live check was approved → after the skeptics, run pr-review step 6b's live checker once on the fixed findings the app can show. Reproduced in the app means not fixed, whatever the skeptic said.
@@ -236,7 +236,7 @@ git add <every FILES path and TEST file from fixed findings>
 git commit -m "fix(review): <short titles, or 'round <k>: <n> findings'>"
 ```
 
-Held fixes are already out of the tree (step 2b). Before adding, `git diff --stat` must show only fixed findings' files; anything else stays unstaged.
+Held fixes are already out of the tree (step 2b), and so are failed ones on their own files (step 3). Leave out any file that also holds an `open` finding's hunks. Before adding, `git status --porcelain` — not `git diff --stat`, which misses new files — must show only what you are about to add, plus the files you are leaving out on purpose.
 
 Follow the repo's commit convention when it has one (`git log --format=%s -15` shows it). Record `<round-k-sha>`. Nothing fixed this round → no commit, and say so.
 
