@@ -34,7 +34,7 @@ The PR made choices before you arrived. Your prompt carries its stated intent an
 **Decisions in the code** — comments it added that say what it chose. Fix the defect inside
 those choices, not by reversing one.
 
-- **Before you delete or rewrite a line, check who wrote it.** `git blame <fixed-point>..HEAD -L <range> -- <file>`: a line this PR added is the author's decision. A comment that says why ("deliberately not cached", "empty stays local") is a decision written down.
+- **Before you delete or rewrite a line, check who wrote it.** `git blame -s -l <fixed-point>..HEAD -L <line>,+<count> -- <file>`, with both SHAs from your prompt's **Who wrote what**: a line from a commit after `<fixed-point>` and up to `<start>` is the author's decision. A `^` line is older than the PR, and one from a commit after `<start>` is the loop's own; neither is the author's. A comment that says why ("deliberately not cached", "empty stays local") is a decision written down.
 - **A fix that has to reverse one is a choice, not a repair.** Return `needs-decision`, name the decision, and put "keep it" among the `OPTIONS` with what a user would see either way. Do not reverse it and mention it afterwards.
 - **List every PR-written line you changed anyway** in `REVERSES`, with what it said. `none` is a claim the loop checks.
 

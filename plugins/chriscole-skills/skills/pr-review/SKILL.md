@@ -261,15 +261,19 @@ what the PR is for; the comments it adds say what it chose. "Deliberately not re
 design decision, and it lives in the diff, not the body:
 
 ```bash
-git diff -U0 <fixed-point>...HEAD | grep -E '^(\+\+\+ |\+\s*(//|#|--|;|/?\*|<!--))' \
-  | grep -vE '^\+\s*(//|#|--|;|\*)\s*$' | head -80
+git diff -U0 <fixed-point>...HEAD | awk '
+  /^\+\+\+ / { file = substr($0, 7) }
+  /^\+[^+]/ && tolower($0) ~ /(\/\/|#|--|\/?\*|<!--).*(deliberate|on purpose|intentional|by design|never|always|instead of|rather than|stays|keeps|must not|so that)/ \
+    { print file ": " substr($0, 2) }' | head -150
 ```
 
-Adjust the comment markers to the repo's languages when they differ.
+It keeps added lines with a comment marker followed by a choice word, trailing comments included,
+each tagged with its file. Adjust the markers to the repo's languages, and the words when its
+comments say "on purpose" another way.
 
-Keep the lines that state a choice — deliberate, never, always, stays, keeps, instead of, on
-purpose — with their file. Paste them, per area, as **Decisions in the code**. A finding that
-contradicts one is either wrong or a real defect in that decision, and the finder must say which.
+Drop the hits that are not a choice — a `never` type, a heading. Paste the rest, per area, as
+**Decisions in the code**. A finding that contradicts one is either wrong or a real defect in
+that decision, and the finder must say which.
 
 **The counterpart — the other side of every boundary this change crosses.** When the profile
 names counterparts, or step 3 found a parity claim, the behaviour a finding turns on often lives

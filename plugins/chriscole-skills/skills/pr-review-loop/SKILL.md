@@ -110,6 +110,8 @@ Spawn one `pr-review-fixer` per group, **all in a single message**. The agent de
 >
 > **Counterpart — the other system's source, read-only:** `<path>`, version `<branch or tag>`; look in <where to look>. Omit when round 1 had none.
 >
+> **Who wrote what:** the PR starts after `<fixed-point>`; the loop's own commits start after `<start>`. A line from a commit in `<fixed-point>..<start>` is the author's; one from after `<start>` is the loop's.
+>
 > Return the schema from your instructions and nothing else.
 
 Copy the finding's bullets, do not re-summarise them. Groups include their test files: two groups never share a test file either. On a second attempt, add the reason the first one failed — the skeptic's `REPRO` against the fixed code, the red check that passed, or the failing check line — under the finding, as **Last attempt failed because:**. The next fixer starts from red again.
@@ -152,12 +154,16 @@ Do it one finding at a time, and only when that finding's non-test files hold no
 - **Passes without the fix** → the test does not reach the defect, so it proves nothing. Not fixed: one attempt, back to `open`, with "test passes without the fix" as the reason.
 - **Fails without the fix for another reason** (compile error, missing import) → same: the test is not red for the right reason.
 
-**Then the author's lines — the loop's own check, not the fixer's `REVERSES`.** For each fixed finding, find the lines the fix removed or rewrote that the PR itself wrote:
+**Then the author's lines — the loop's own check, not the fixer's `REVERSES`.** For each fixed finding, find the lines the fix removed or rewrote that the PR itself wrote. `<rev>` is the revision the fix's old side is — `HEAD` here, since the fix is not committed yet:
 
 ```bash
-git diff -U0 -- <the finding's non-test FILES> | grep -E '^(\+\+\+ |@@)'   # the old-side ranges each hunk touched
-git blame -s <fixed-point>..HEAD -L <start>,+<count> -- <file> | grep -v '^\^'   # no ^ = written by this PR
+git diff -U0 <rev> -- <the finding's non-test FILES> | grep -E '^(\+\+\+ |@@)'   # old-side ranges: @@ -<line>,<count> (no ,<count> means 1)
+# per hunk with <count> above 0 — a hunk that only inserts rewrote nothing, and -L n,+0 is an error:
+git blame -s -l <fixed-point>..<rev> -L <line>,+<count> -- <file> \
+  | awk -v loop="$(git rev-list <start>..<rev> | tr '\n' ' ')" 'substr($0,1,1) != "^" && index(loop, substr($0,1,40)) == 0'
 ```
+
+`<fixed-point>` is the PR's, from step 1 — never a later round's. What comes back is a line from a commit after it that is not one of the loop's own (`<start>..<rev>`): the author's. The `awk` rather than `grep -vF -f`: with no loop commits yet the pattern list is empty, and some greps then print nothing.
 
 Any line that comes back and is not in the fixer's `REVERSES` → treat the return as if it had listed it: step 2b, as above. The ones that are listed go into the skeptic's prompt below.
 
@@ -213,7 +219,7 @@ Follow the repo's commit convention when it has one (`git log --format=%s -15` s
 
 Run pr-review steps 1 to 7 again, **narrowed to this round's commit**: fixed point = the SHA before it. That is pr-review's incremental review, and the narrowing is real — the loop's fixes are the only new code, and round 1 already covered the rest.
 
-Reuse round 1's intent brief, digest, usage map, **Decisions in the code** and counterpart instead of rebuilding them. A round small enough for pr-review's inline path still gets them: read the commit against the stated intent and the decisions list yourself, and run the author's-lines check from step 3 on it. A small diff is where a reversed decision hides best. Add one thing to every finder's prompt, under **Already raised**: every ledger entry for its files, with its state, so nobody re-reports a fixed finding as new or rediscovers an `adjacent` one.
+Reuse round 1's intent brief, digest, usage map, **Decisions in the code** and counterpart instead of rebuilding them. A round small enough for pr-review's inline path still gets them: read the commit against the stated intent and the decisions list yourself, and run the author's-lines check from step 3 on it, with `<rev>` = the SHA before the round's commit and the diff `git diff -U0 <rev> <round-k-sha>`. Keep `<fixed-point>` the PR's: the re-review's own fixed point would put every line the author wrote outside the range, and the check would come back empty. A small diff is where a reversed decision hides best. Add one thing to every finder's prompt, under **Already raised**: every ledger entry for its files, with its state, so nobody re-reports a fixed finding as new or rediscovers an `adjacent` one.
 
 New confirmed findings get new ids (`R2-1`, …) and go into the ledger as `open`.
 
