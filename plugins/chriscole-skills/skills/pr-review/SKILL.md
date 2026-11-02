@@ -202,9 +202,8 @@ Write the brief. Five parts, and the first is verbatim:
 
 **A body that claims parity with another system** — "checked against the backend", "matches the
 other client", "the consumer now accepts", "compatible with v3 of the library" — makes that system
-part of the review. Name it under
-Constraints, and step 4b's counterpart block is required, profile or not. A claim about a system
-nobody read is the claim most likely to be wrong.
+part of the review. Name it under Constraints, and step 4b's counterpart block is required,
+profile or not. A claim about a system nobody read is the claim most likely to be wrong.
 
 Done when the **Stated intent** block matches `gh pr view --json title,body` character for character, and every comment on the PR sits somewhere in the brief.
 
@@ -290,6 +289,13 @@ git -C <counterpart path> grep -n <names that cross the boundary: endpoints, mes
 Read only — never check out, never edit. Paste the profile's where-to-look lines and these hits
 as a **counterpart** block into every agent. No counterpart named and no parity claim: skip
 this, and say nothing.
+
+**A parity claim the profile does not cover** has no where-to-look. Find the source in this
+order, and stop at the first hit: a clone named after the system beside this repo's main checkout
+(`$(git rev-parse --git-common-dir)/../..`); the dependency's installed or vendored source; the
+repo the PR body or a linked ticket names, read with `gh api repos/<owner>/<name>/contents/<path>`.
+Ask the user nothing for it. Nothing found → the block says **not found**, every verdict that
+turns on the system is unsettled, and the report's facts row says `🔌 counterpart **not read**`.
 
 ### 5. Find
 

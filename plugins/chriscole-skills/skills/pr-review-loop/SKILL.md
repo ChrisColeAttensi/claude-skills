@@ -120,12 +120,29 @@ Apply the returns: `fixed` with `RED` and `GREEN` filled in → step 3 proves it
 
 Two more fields, checked before step 3:
 
-- **`REVERSES` is not `none`** → the fix undid a line the author wrote. It is not proved yet: step 2b, with "keep the author's line" as one option and the fix as the other. A decision of `CHANGE: needed` lets the fix stand; anything else reverts it.
+- **`REVERSES` is not `none`** → the fix undid a line the author wrote. It is **held**, and goes to step 2b with "keep the author's line" as one option and the fix as the other.
 - **`COUNTERPART: not checked`** on a fix that crosses a boundary, while round 1 had a counterpart → `failed`, with "the other system's handling was not read" as the reason. Without a counterpart at all, carry it as `counterpart unchecked` into the ledger and the report.
 
 ### 2b. Decide
 
-Only when a fixer returned `needs-decision`, or a step-3 skeptic left a fix unsettled last round. All the fixers have returned by now, so the tree is quiet and a decider's probe cannot collide with an edit.
+Only when something is waiting on a choice:
+
+- a fixer returned `needs-decision`;
+- a fix is **held** because it changes a line the author wrote — its `REVERSES`, step 3's author's-lines check, or a step-3 skeptic's `CORRECTION` naming a decision it undoes;
+- a step-3 skeptic left a fix unsettled.
+
+The first two from this round's fixers run now; anything step 3 raised runs in the next round's 2b. All the fixers have returned by then, so the tree is quiet and a decider's probe cannot collide with an edit.
+
+**A held fix is out of the tree until it is decided.** Save its hunks, test included, and revert them, so no skeptic judges it and step 4 never commits it. A new test file is untracked, and a plain `git diff` leaves it out, so mark it first:
+
+```bash
+git add -N <the finding's new files>                       # so the patch carries them
+git diff -- <the finding's FILES and TEST> > <scratch>/<id>.held.patch
+git apply -R <scratch>/<id>.held.patch                     # reverts edits, deletes the new files
+git rm -q --cached <the finding's new files>               # clears the intent-to-add entries
+```
+
+`git apply <scratch>/<id>.held.patch` puts it all back. When its non-test files hold another finding's hunks too, hold the whole group, as step 3's red check does.
 
 Spawn one `pr-review-decider` per question, **all in a single message**, with pr-review step 6c's prompt: the question is the fixer's `NOTE`, the competing shapes are its `OPTIONS`, and the intent brief, digest and overrides log are round 1's. Apply what comes back:
 
@@ -133,6 +150,12 @@ Spawn one `pr-review-decider` per question, **all in a single message**, with pr
 - **decided, `CHANGE: none`** → `ruled-fine`. Nothing to fix.
 - **settled confirmed** → stays `open`, with the decider's `REPRO`. **Settled refuted** → `dropped`, with the evidence in the discarded file.
 - **escalate** → `escalated`. Check it against the bar exactly as step 6c says, then set it aside. The loop goes on without it.
+
+**A held fix is decided by what the decision keeps, not by `CHANGE` alone.** Read its `DECISION`:
+
+- **the fix stands** → `git apply` the held patch next round, and it goes through step 3 again with the reversal accepted: the author's-lines check and the skeptic skip the lines this decision covers, so it is not held twice for the same line. The report shows it as `changes the author's line`.
+- **the author's line stays, and the defect still needs fixing** (`CHANGE: needed`) → discard the patch; the finding goes back to `open` with "keep the author's line" in its **Decided** line, so the next fixer works inside it.
+- **the author's line stays, and the defect is acceptable** (`CHANGE: none`) → discard the patch; `ruled-fine`.
 
 A finding a fixer sends back to 2b a second time, after it already had a decision, is `stuck`: the decision did not make it fixable.
 
@@ -165,7 +188,7 @@ git blame -s -l <fixed-point>..<rev> -L <line>,+<count> -- <file> \
 
 `<fixed-point>` is the PR's, from step 1 — never a later round's. What comes back is a line from a commit after it that is not one of the loop's own (`<start>..<rev>`): the author's. The `awk` rather than `grep -vF -f`: with no loop commits yet the pattern list is empty, and some greps then print nothing.
 
-Any line that comes back and is not in the fixer's `REVERSES` → treat the return as if it had listed it: step 2b, as above. The ones that are listed go into the skeptic's prompt below.
+Any line that comes back and is not in the fixer's `REVERSES` → treat the return as if it had listed it: the fix is held, as step 2b says. A fix that is not held changed none of the author's lines, so the skeptic's prompt below says "none" for it.
 
 **Machine next.** Run the repo's build and the full test suite, filtered, exactly as pr-review step 2 does. Fixers ran the narrow checks; this is the one that catches a fix in one group breaking another.
 
@@ -197,7 +220,7 @@ A failure is a finding of its own, needs no skeptic, and joins the next round's 
 
 Apply the verdicts:
 
-- **refuted, with `WHY` naming a line in the change** → `fixed` — unless `CORRECTION` names a decision the change undoes: then step 2b, with "keep the author's decision" as an option, before it can be `fixed`.
+- **refuted, with `WHY` naming a line in the change** → `fixed` — unless `CORRECTION` names a decision the change undoes: then the fix is held, as step 2b says, with "keep the author's decision" as an option.
 - **refuted for another reason** → `fixed` is not earned; the original finding was wrong or the fix is incidental. Mark it `fixed`, but log the `CORRECTION` in the discarded file so the next round's finders look at that code fresh.
 - **confirmed** → the fix did not take, and the test that went green missed it. Revert that finding's hunks, test included (`git checkout -- <files>` only when the group had one finding; otherwise hand the skeptic's `REPRO` to the next fixer and let it rework), add one attempt, back to `open`. The **Last attempt failed because** line says the old test passed while the fault remained, so the next test is written from the skeptic's REPRO.
 - **unsettled** → step 2b next round, with what would settle it.
@@ -212,6 +235,8 @@ Only the fixers' files — the fix and its test together, so the commit carries 
 git add <every FILES path and TEST file from fixed findings>
 git commit -m "fix(review): <short titles, or 'round <k>: <n> findings'>"
 ```
+
+Held fixes are already out of the tree (step 2b). Before adding, `git diff --stat` must show only fixed findings' files; anything else stays unstaged.
 
 Follow the repo's commit convention when it has one (`git log --format=%s -15` shows it). Record `<round-k-sha>`. Nothing fixed this round → no commit, and say so.
 
