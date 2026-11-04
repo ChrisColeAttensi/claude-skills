@@ -60,3 +60,17 @@ critical path from 23.6 to 10.0 minutes (finding alone, 22.6 to 8.4) and found s
 defects against three, for about 1.4x the tokens. Each finder still reads the siblings it needs, so
 turns go up, not down. The split buys latency and recall, not economy. Agents also do not batch
 tool calls: over 87 finder calls under an explicit batching rule, none were batched.
+
+## pr-review: which model runs which agent
+
+`pr-review-live-checker` runs on Sonnet. Against planted bugs with known answers — dummy mode
+(3 runs each) and a real staging project (2 runs each, read-only) — Opus and Sonnet both got
+every premise point and every finding right (24/24 premise points, 35/35 findings each), at about
+the same tokens and slightly faster for Sonnet. Haiku, run once, reported a false repro
+(it never checked the search box held what it typed) and used 2–3x the tokens. Both Opus and
+Sonnet mislabelled the overall premise verdict until `partial` was defined in the agent.
+
+`pr-review-verifier` stays on Opus. Replaying 29 past claims at their commits, with a blind Opus
+judge on disagreements: Opus 28/29, Sonnet 26/29, Haiku 25/29 — Haiku's misses dismissed real
+bugs, and it used about 2x the tokens. Sonnet's gap is within noise at this sample; rerun with a
+larger one before moving it.

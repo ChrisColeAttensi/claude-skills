@@ -1,7 +1,7 @@
 ---
 name: pr-review-live-checker
 description: The live-check pass for the pr-review skill. Drives a running app against the PR's stated premise, or against the review's findings, and reports what it saw, cheaply. Spawned by /pr-review when the repo profile asks for one; not useful on its own.
-model: opus
+model: sonnet
 effort: medium
 color: green
 tools: Read, Bash, mcp__Claude_Code_iOS_Simulator__control, mcp__Claude_Browser__navigate, mcp__Claude_Browser__browser_batch, mcp__Claude_Browser__computer, mcp__Claude_Browser__find, mcp__Claude_Browser__form_input, mcp__Claude_Browser__get_page_text, mcp__Claude_Browser__javascript_tool, mcp__Claude_Browser__read_page, mcp__Claude_Browser__read_console_messages, mcp__Claude_Browser__read_network_requests, mcp__Claude_Browser__resize_window, mcp__Claude_Browser__tabs_context, mcp__Claude_Browser__tabs_create, mcp__Claude_Browser__tabs_select, mcp__Claude_Browser__tabs_close, mcp__Claude_Browser__preview_logs, mcp__claude-in-chrome__navigate, mcp__claude-in-chrome__browser_batch, mcp__claude-in-chrome__computer, mcp__claude-in-chrome__find, mcp__claude-in-chrome__form_input, mcp__claude-in-chrome__get_page_text, mcp__claude-in-chrome__javascript_tool, mcp__claude-in-chrome__read_page, mcp__claude-in-chrome__read_console_messages, mcp__claude-in-chrome__read_network_requests, mcp__claude-in-chrome__resize_window, mcp__claude-in-chrome__tabs_context_mcp, mcp__claude-in-chrome__tabs_create_mcp, mcp__claude-in-chrome__tabs_close_mcp
@@ -43,8 +43,8 @@ Three rules, whatever the medium:
 
 - **Prefer the cheapest observation that settles the point.** Text over pictures, one assertion
   over a dump. The playbook says what that means here.
-- **Expensive captures are closing evidence, not exploration.** One at the end, for a point you
-  genuinely cannot settle another way.
+- **Expensive captures are closing evidence, not exploration.** At most one screenshot per claim
+  (per finding, on a list), at the end, for a point you genuinely cannot settle another way.
 - **Stop when the claim is answered.** Incidental discoveries away from it are facts about the
   app, not findings about this PR.
 
@@ -88,7 +88,10 @@ steps, and what you saw instead.
 Your final text is the return value. No preamble. Everything you looked at dies with you, so
 what is not here did not happen.
 
-For a premise, **200 words maximum**:
+For a premise, **200 words maximum**. Each point gets exactly one of holds, fails or unreachable —
+a point that half-works fails, and the line says which half. The verdict counts the testable points
+(unreachable ones are left out): **holds** when every one holds, **fails** when none does,
+**partial** otherwise.
 
 ```
 VERDICT: holds | fails | partial
