@@ -26,18 +26,9 @@ model: opus
 **`/pr-review loop`** runs the same steps unattended: every question is asked up front, and step 8
 goes straight into the loop, round after round, until green or stuck.
 
-## Why it is built this way
+## Principles
 
-Most of a code review is already decided before a model reads anything. The compiler knows whether it builds. The analyzers know the style. CI knows whether the tests pass. The repo's own docs know which mistakes are expensive here. Ask those first, for free. What is left is the part that needs judgement: **does this do the right thing, and does it do what the author said it does?**
-
-That leaves two hard problems, and they need opposite treatments:
-
-- **Missing a real defect** is a reading problem — solved by reading well, risk-first, once. Three identical readings share their blind spots.
-- **Inventing a defect** is a confidence problem — solved by making each finding survive an attempt to refute it. Refuting one claim needs one hunk; re-deriving it needs the whole diff. That asymmetry is the whole design.
-
-Hence **finders split by area, and a skeptic per finding**. A clean PR costs little, because the expensive half scales with how many findings there are.
-
-> **Measured**, on one 14-file PR against a single-finder run of the same diff: three finders cut the critical path from 23.6 minutes to 10.0, and found six confirmed defects against three, for about 1.4x the tokens. The split buys latency and recall. It does not buy economy.
+Ask the machine first — compiler, analyzers, CI, the repo's own docs — for free. Judgement is for what is left: **does this do the right thing, and what the author said it does?** Missing a defect is a reading problem: read well, risk-first, once, split by area. Inventing one is a confidence problem: every finding survives a skeptic, who needs one hunk where re-deriving needs the whole diff.
 
 **There is one severity: blocking.** A finding either has to change before this merges, or it is not in the report. Ranking the rest is just a way of shipping noise with a label on it.
 
@@ -52,9 +43,7 @@ Steps 0 to 4 are cheap and run in the main session. Spend the budget on 5 and 6.
 **Read every file under `reference/` with the Read tool, whole, when a step points at it** — never
 `cat` it in a shell. Bash cuts long output and drops the middle, and the middle is the step.
 
-Batch your own commands wherever one does not need the last one's answer — every `gh` call in step 1, every grep in step 4, is independent.
-
-The agents in steps 5 and 6 will not do this, and telling them to does not help: measured over 87 finder tool calls under an explicit batching rule, not one was batched. If you want them working in parallel, split the work across more agents. That is the only lever you have.
+Batch your own commands wherever one does not need the last one's answer — every `gh` call in step 1, every grep in step 4, is independent. Agents do not batch, whatever their prompt says; parallelism comes only from spawning more of them.
 
 ### 0. Load the repo's review profile
 
@@ -70,7 +59,7 @@ for f in .claude/pr-review.md docs/agents/pr-review.md .agents/pr-review.md PR_R
 done
 ```
 
-No file is the normal case. Say nothing and run the steps below unchanged.
+No file is the default case. Say nothing and run the steps below unchanged.
 
 A file, and you read it whole — it is short by construction — and fold it in:
 
@@ -81,7 +70,7 @@ A file, and you read it whole — it is short by construction — and fold it in
 | build and test commands | step 2, in place of guessing |
 | **extra passes** — another skill to run, a check only this repo needs | between step 4 and step 5, see below |
 | what to leave alone | drop those findings at step 7, and say the profile dropped them |
-| **counterparts** — the other systems this one depends on or feeds: where their source is, which version, where to look | step 4b's counterpart block, pasted into every agent |
+| **counterparts** — the other systems this one depends on or feeds: where their source is, which version, where to look | step 4b's counterpart block ([reference/counterpart.md](./reference/counterpart.md)), pasted into every agent |
 | a decision policy — what always gets asked, which choices a doc already rules | step 6c, pasted into every decider |
 | a house style for the report — no emoji, a required preamble, where the comment goes | step 7d, and step 8's comment |
 
@@ -99,7 +88,7 @@ A pass that fires produces one of two things:
 **A pass the profile marks `ask-first` is a question to the user, before it runs.** Say what it
 would do, what it would cost, and what it would tell you that the diff alone cannot. Then wait.
 If the user declines, that is a fact for the report — one line saying the pass was offered and
-skipped — not a silence. Under `/pr-review loop`, loop.md L0 already asked it, and the live-check
+skipped — not a silence. Under `/pr-review loop`, the loop's preflight already asked it, and the live-check
 ask below: use those answers and ask nothing here.
 
 **A pass that stands the app up and uses it — a live check — runs in `pr-review-live-checker`,
@@ -121,7 +110,7 @@ the change to it like any other file. A PR that relaxes its own review is the th
 
 | Input | How to resolve |
 |---|---|
-| a leading `loop` | strip it, resolve the rest by this table, then read [reference/loop.md](./reference/loop.md) **L0** now and run its preflight before step 2 |
+| a leading `loop` | strip it, resolve the rest by this table, then read [reference/loop-preflight.md](./reference/loop-preflight.md) now and run it before step 2 — not loop.md, which waits for step 8 |
 | a PR number or URL | `gh pr view <n> --json number,url,title,body,state,headRefName,baseRefName,reviews` |
 | nothing, or "this PR" | `gh pr view --json ...` for the current branch; no PR, use the branch |
 | a branch, tag, SHA, `main`, `HEAD~5` | that is the fixed point |
@@ -141,11 +130,7 @@ Three dots, so you see what the branch adds and not what landed on the base mean
 - **Under ~5 files and ~150 changed lines** — no agents. Read the diff yourself, apply steps 2 to 4, and write the report. A skeptic pass on your own findings is still worth it if you found more than one thing.
 - **Anything larger** — split the diff into 2 to 4 areas, one finder each, spawned in a single message. Still one skeptic per finding. Split by area, never by "run it again".
 
-One finder reading a whole PR is the slowest thing in this review by an order of magnitude. Splitting it is the single change that fixes that: measured, 22.6 minutes of finding became 8.4.
-
-It costs more, and the cost is worth naming. Three finders do not divide the reading — each still reads the siblings it needs to judge its own files, so turns go up rather than down. Expect roughly 1.4x the tokens for the split, and more again if the extra findings pull in extra skeptics. You are buying latency and recall, not economy.
-
-Prefer three areas over two when the diff has three coherent parts.
+The split buys latency and recall at roughly 1.4x the tokens, not economy.
 
 An area is a set of files that can be judged together: a route and its components, a store and its callers, the tests for both. Never split a file across areas, and never split a caller from the thing it calls.
 
@@ -212,7 +197,7 @@ Write the brief. Five parts, and the first is verbatim:
 **A body that claims parity with another system** — "checked against the backend", "matches the
 other client", "the consumer now accepts", "compatible with v3 of the library" — makes that system
 part of the review. Name it under Constraints, and step 4b's counterpart block is required,
-profile or not. A claim about a system nobody read is the claim most likely to be wrong.
+profile or not ([reference/counterpart.md](./reference/counterpart.md)). A claim about a system nobody read is the claim most likely to be wrong.
 
 Done when the **Stated intent** block matches `gh pr view --json title,body` character for character, and every comment on the PR sits somewhere in the brief.
 
@@ -232,79 +217,19 @@ Assemble it **whole**, covering the diff. Step 5 hands each finder only the entr
 
 A few facts decide most verdicts, and each is a shell command rather than a judgement. Compute them once here, paste them into every agent, and no finder or skeptic ever spends a turn rediscovering them. This is the cheapest confidence in the review.
 
-**The usage map — who calls the changed code.** The commonest wrong finding is a fault behind a caller that does not exist. The commonest missed finding is a caller nobody thought to look at. Both are the same missing list:
+One script computes the first three, from the repo root. `<skill dir>` is the base directory this skill was loaded from:
 
 ```bash
-git diff --name-only <fixed-point>...HEAD | while read -r f; do
-  b=$(basename "$f"); b="${b%.*}"
-  printf '%s <- ' "$f"
-  grep -rl --exclude-dir=node_modules --exclude-dir=.git -- "$b" src 2>/dev/null \
-    | grep -vx "$f" | head -6 | tr '\n' ' '
-  echo
-done
+bash <skill dir>/scripts/surroundings.sh <fixed-point> [search root — default: the whole repo]
 ```
 
-Add the newly exported names, which the basename grep will not catch:
+**Usage map** — who calls the changed code, plus every use of a newly exported name. The commonest wrong finding is a fault behind a caller that does not exist; the commonest missed one is a caller nobody looked at. Paste it saying plainly what it is: every importer we found, and an empty line means we found none.
 
-```bash
-git diff <fixed-point>...HEAD | grep '^+' | grep -oE 'export (function|const|class|type|interface) [A-Za-z_][A-Za-z0-9_]*' | awk '{print $3}' | sort -u
-```
+**Omission check** — files that usually change alongside these, and did not. A finder reads the diff, so it cannot see the file that should have been in it. Most entries are noise — a barrel file, a lockfile. One or two are the question worth asking: the mapper not updated, the sibling handling the other half of the enum. It is a prompt for the finder, never a finding on its own. The script skips it over 40 changed files.
 
-then one `grep -rn` for the batch of them. Paste the result as a **usage map** and say plainly what it is: every importer we found, and that an empty line means we found none.
+**Decisions in the code** — added comments that state a choice ("deliberately not retried"). The description says what the PR is for; these say what it chose. Drop hits that are not a choice — a `never` type, a heading — and extend the script's markers or words when the repo's languages or comments need it. A finding that contradicts one is either wrong or a real defect in that decision, and the finder must say which.
 
-**The omission check — what usually changes alongside this, and did not.** A finder reads the diff, so it structurally cannot see the file that should have been in the diff and is not. Git knows which files travel together:
-
-```bash
-for f in $(git diff --name-only <fixed-point>...HEAD | head -10); do
-  git log --format='%H' -n 15 -- "$f" | while read -r c; do git show --name-only --format= "$c"; done
-done | sort | uniq -c | sort -rn | head -25
-```
-
-Subtract the files this PR already touches. What is left, at the top, is a short list of "this normally moves with that". Most entries are noise — a shared barrel file, a lockfile. One or two are the question worth asking: the mapper that was not updated, the test file that did not move, the sibling that handles the other half of the enum.
-
-Cap it at the ten files above and skip it on a diff over ~40 files, where it stops being informative and starts being slow. It is a prompt for the finder, never a finding on its own — an unchanged file is not a defect until somebody says what breaks because of it.
-
-**The author's decisions in the code — what the PR chose, line by line.** The description says
-what the PR is for; the comments it adds say what it chose. "Deliberately not retried" is a
-design decision, and it lives in the diff, not the body:
-
-```bash
-git diff -U0 <fixed-point>...HEAD | awk '
-  /^\+\+\+ / { file = substr($0, 7) }
-  /^\+[^+]/ && tolower($0) ~ /(\/\/|#|--|\/?\*|<!--).*(deliberate|on purpose|intentional|by design|never|always|instead of|rather than|stays|keeps|must not|so that|so we|we accept|as entered|on the assumption|by choice|we want|we chose)/ \
-    { print file ": " substr($0, 2) }' | head -150
-```
-
-It keeps added lines with a comment marker followed by a choice word, trailing comments included,
-each tagged with its file. Adjust the markers to the repo's languages, and the words when its
-comments say "on purpose" another way.
-
-Drop the hits that are not a choice — a `never` type, a heading. Paste the rest, per area, as
-**Decisions in the code**. A finding that contradicts one is either wrong or a real defect in
-that decision, and the finder must say which.
-
-**The counterpart — the other side of every boundary this change crosses.** When the profile
-names counterparts, or step 3 found a parity claim, the behaviour a finding turns on often lives
-in another codebase: what a service does with a request, how a consumer reads a record, what a
-library does with an edge case. The counterpart can be a sibling clone, a vendored copy, or a
-dependency's installed source — the profile says where, and which version matters. Locate it
-once. For a git clone, read the version named without touching its checkout:
-
-```bash
-git -C <counterpart path> fetch -q origin <branch>
-git -C <counterpart path> grep -n <names that cross the boundary: endpoints, message types, field names> origin/<branch> | head -40
-```
-
-Read only — never check out, never edit. Paste the profile's where-to-look lines and these hits
-as a **counterpart** block into every agent. No counterpart named and no parity claim: skip
-this, and say nothing.
-
-**A parity claim the profile does not cover** has no where-to-look. Find the source in this
-order, and stop at the first hit: a clone named after the system beside this repo's main checkout
-(`$(git rev-parse --git-common-dir)/../..`); the dependency's installed or vendored source; the
-repo the PR body or a linked ticket names, read with `gh api repos/<owner>/<name>/contents/<path>`.
-Ask the user nothing for it. Nothing found → the block says **not found**, every verdict that
-turns on the system is unsettled, and the report's facts row says `🔌 counterpart **not read**`.
+**Counterpart** — when the profile names counterparts, or step 3 found a parity claim, read [reference/counterpart.md](./reference/counterpart.md) and build the **counterpart** block. Neither: skip it and say nothing.
 
 ### 5. Find
 

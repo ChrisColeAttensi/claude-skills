@@ -52,3 +52,11 @@ gets its own namespace prefix and its own entry in `.claude-plugin/marketplace.j
 `renames` in `marketplace.json` maps a former plugin name to its current one so installed machines
 migrate themselves. `pr-review` → `chriscole-skills` is there from the v1.0.0 naming, which
 stuttered as `pr-review:pr-review`.
+
+## pr-review: why it splits finders
+
+Measured on one 14-file PR, against a single-finder run of the same diff: three finders cut the
+critical path from 23.6 to 10.0 minutes (finding alone, 22.6 to 8.4) and found six confirmed
+defects against three, for about 1.4x the tokens. Each finder still reads the siblings it needs, so
+turns go up, not down. The split buys latency and recall, not economy. Agents also do not batch
+tool calls: over 87 finder calls under an explicit batching rule, none were batched.

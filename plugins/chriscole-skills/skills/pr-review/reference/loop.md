@@ -42,26 +42,19 @@ and proving are the work that goes to agents.
 
 ### L0. Preflight
 
-Before any fixer runs:
+Under `/pr-review loop` it already ran at step 1: go to L1. Chosen at step 8: read
+[loop-preflight.md](./loop-preflight.md) and run its checks, then L1.
 
-- **The branch must be checked out here.** If the PR's head is not the current branch, ask before
-  `gh pr checkout <n>` — it changes the user's working tree.
-- **The working tree must be clean.** `git status --porcelain` empty. Otherwise stop and say so:
-  this loop commits, and it must never sweep the user's unfinished work into a commit.
-- **Record the start:** `git rev-parse HEAD` is `<start>`. Every commit after it is the loop's own.
+**Scripts.** `<skill dir>` is the base directory the skill was loaded from. Two scripts do the
+loop's git work, from the repo root:
 
-**Invoked as `/pr-review loop`** — preflight runs right after step 1 resolves the target, before any
-agent, and asks everything the loop will need **once, together**, so it can run unattended:
-
-- any `ask-first` pass the repo's profile would fire, and the live check if there is one — one yes
-  covers every round, and the app stays up across them;
-- **where the fixes land** — local commits only (the default, always safe), or push at the end.
-  Never push mid-loop.
-
-Then steps 2 to 7 run as written, step 8 asks nothing, and the loop starts at L1.
-
-**Chosen at step 8** — the user is here, so the step-8 question already covered where the fixes
-land. Run the three checks above, then L1.
+- `bash <skill dir>/scripts/hold.sh out <patch> <files…>` saves the files' changes to `<patch>` and
+  takes them out of the tree, new files included (`git checkout` would leave a new file behind).
+  `hold.sh in <patch>` puts them back and fails loudly if they do not re-apply. `hold.sh drop
+  <files…>` takes them out and keeps nothing.
+- `bash <skill dir>/scripts/authors-lines.sh <fixed-point> <start> <rev> [<to>] -- <files…>` prints
+  every line the change removes or rewrites that the PR's author wrote, with its blame. Nothing
+  printed means none. `<fixed-point>` is always the PR's, from step 1.
 
 ### L1. Set up the ledger
 
@@ -176,19 +169,10 @@ The first two from this round's fixers run now; anything L3 raised runs in the n
 All the fixers have returned by then, so the tree is quiet and a decider's probe cannot collide
 with an edit.
 
-**A held fix is out of the tree until it is decided.** Save its hunks, test included, and revert
-them, so no skeptic judges it and L4 never commits it. A new test file is untracked, and a plain
-`git diff` leaves it out, so mark it first:
-
-```bash
-git add -N <the finding's new files>                       # so the patch carries them
-git diff -- <the finding's FILES and TEST> > <scratch>/<id>.held.patch
-git apply -R <scratch>/<id>.held.patch                     # reverts edits, deletes the new files
-git rm -q --cached <the finding's new files>               # clears the intent-to-add entries
-```
-
-`git apply <scratch>/<id>.held.patch` puts it all back. When its non-test files hold another
-finding's hunks too, hold the whole group, as L3's red check does.
+**A held fix is out of the tree until it is decided**, so no skeptic judges it and L4 never
+commits it: `hold.sh out <scratch>/<id>.held.patch <the finding's FILES and TEST>`, and
+`hold.sh in` the same patch to put it back. When its non-test files hold another finding's hunks
+too, hold the whole group, as L3's red check does.
 
 Spawn one `pr-review-decider` per question, **all in a single message**, with
 [decide.md](./decide.md)'s prompt: the question is the fixer's `NOTE`, the competing shapes are its
@@ -228,17 +212,15 @@ the fix out and run the test, so the test is proved to catch the defect and not 
 fixers have returned, so the tree is quiet:
 
 ```bash
-git add -N <the finding's new non-test files>           # a new helper is untracked; carry it too
-git diff -- <the finding's non-test FILES> > <scratch>/<id>.fix.patch
-git apply -R <scratch>/<id>.fix.patch                   # git checkout would leave a new file behind
+bash <skill dir>/scripts/hold.sh out <scratch>/<id>.fix.patch <the finding's non-test FILES>
 <the fixer's RUN command> 2>&1 | tail -30   # must FAIL, for the finding's reason
-git apply <scratch>/<id>.fix.patch
+bash <skill dir>/scripts/hold.sh in <scratch>/<id>.fix.patch
 <the fixer's RUN command> 2>&1 | tail -30   # must PASS
 ```
 
 Do it one finding at a time, and only when that finding's non-test files hold no other finding's
-hunks; otherwise revert the whole group's non-test files together and expect every one of the
-group's tests to fail. Check the patch re-applied (`git diff --stat` matches before) before moving on.
+hunks; otherwise take the whole group's non-test files out together and expect every one of the
+group's tests to fail. `hold.sh in` failing is failure-modes' "patch does not re-apply": stop.
 
 - **Fails without the fix, for the finding's reason; passes with it** → red-green holds. On to the
   machine checks.
@@ -248,20 +230,8 @@ group's tests to fail. Check the patch re-applied (`git diff --stat` matches bef
   not red for the right reason.
 
 **Then the author's lines — the loop's own check, not the fixer's `REVERSES`.** For each fixed
-finding, find the lines the fix removed or rewrote that the PR itself wrote. `<rev>` is the revision
-the fix's old side is — `HEAD` here, since the fix is not committed yet:
-
-```bash
-git diff -U0 <rev> -- <the finding's non-test FILES> | grep -E '^(\+\+\+ |@@)'   # old-side ranges: @@ -<line>,<count> (no ,<count> means 1)
-# per hunk with <count> above 0 — a hunk that only inserts rewrote nothing, and -L n,+0 is an error:
-git blame -s -l <fixed-point>..<rev> -L <line>,+<count> -- <file> \
-  | awk -v loop="$(git rev-list <start>..<rev> | tr '\n' ' ')" 'substr($0,1,1) != "^" && index(loop, substr($0,1,40)) == 0'
-```
-
-`<fixed-point>` is the PR's, from step 1 — never a later round's. What comes back is a line from a
-commit after it that is not one of the loop's own (`<start>..<rev>`): the author's. The `awk` rather
-than `grep -vF -f`: with no loop commits yet the pattern list is empty, and some greps then print
-nothing.
+finding, `authors-lines.sh <fixed-point> <start> HEAD -- <the finding's non-test FILES>` — the fix
+is not committed yet, so its old side is `HEAD`.
 
 Any line that comes back and is not in the fixer's `REVERSES` → treat the return as if it had listed
 it: the fix is held, as L2b says, unless the line is covered (L2). Covered lines still go into the
@@ -315,10 +285,8 @@ Apply the verdicts:
   is incidental. Mark it `fixed`, but log the `CORRECTION` in the discarded file so the next round's
   finders look at that code fresh.
 - **confirmed** → the fix did not take, and the test that went green missed it. Revert that
-  finding's hunks, test included, with L2b's hold commands minus the saved patch —
-  `git add -N <new files>`, then `git diff -- <files> | git apply -R`, then
-  `git rm -q --cached <new files>`. `git checkout` leaves a new test file behind, and L4 would commit
-  it without its fix. When its files hold another finding's hunks too, revert nothing; those files
+  finding's hunks, test included: `hold.sh drop <files and TEST>`, so L4 never commits the test
+  without its fix. When its files hold another finding's hunks too, revert nothing; those files
   stay out of this round's commit, and the next fixer reworks them from the skeptic's `REPRO`. A
   fixed finding in those files stays `fixed`, and its commit is the round that commits the file. Add
   one attempt, back to `open`. The **Last attempt failed because** line says the old test passed
@@ -365,8 +333,8 @@ Three parts of those steps change for a re-review, so the first review's records
 
 Reuse the review's intent brief, digest, usage map, **Decisions in the code** and counterpart
 instead of rebuilding them. A round small enough for step 1's inline path still gets them: read the
-commits against the stated intent and the decisions list yourself, and run the author's-lines check
-from L3 on them, with `<rev>` = `<round-k-base>` and the diff `git diff -U0 <rev> <round-k-head>`.
+commits against the stated intent and the decisions list yourself, and run
+`authors-lines.sh <fixed-point> <start> <round-k-base> <round-k-head> -- <the round's files>`.
 Keep `<fixed-point>` the PR's: the re-review's own fixed point would put every line the author wrote
 outside the range, and the check would come back empty. A line already ruled covered, or already
 decided, in L3 is not raised again here. A small diff is where a reversed decision hides best. Add
