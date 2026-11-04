@@ -40,6 +40,43 @@ Review → fix → review → fix … → **verify**. The rounds converge; verif
 Subagents cannot spawn subagents, so the review and every fan-out run in the main session. Fixing
 and proving are the work that goes to agents.
 
+## The author's lines
+
+A line from a commit in `<fixed-point>..<start>` is the **author's** — a decision the PR made. A `^`
+line predates the PR; one after `<start>` is the loop's own. A fix that removes or rewrites an
+author's line is **held**, unless the line is **covered**.
+
+**Three checks find them**, and any one is enough: the fixer's `REVERSES` (L2), `authors-lines.sh`
+on the uncommitted fix (L3) and on each committed round (L5), and an L3 skeptic's `CORRECTION`
+naming a decision the fix undoes.
+
+**Covered** — only these three:
+
+- the finding's own `Where` line, when what the finding says is wrong is that line's text — a false
+  sentence, a wrong value;
+- a line the finding's **Decided** line names;
+- a carrier edit: the author's line survives word for word — a trailing comma for an added
+  argument, an expression moved unchanged into a variable.
+
+Anything else is held, even when the decision seems to imply it: a line the decision does not
+name, rewritten in a way it did not say, is a new choice. Covered lines still go into the L3
+skeptic's prompt, each marked with what covers it, so the rewrite is judged against the decision
+rather than taken on trust. A line already ruled covered or decided is not raised again in L5.
+
+**Held** — out of the tree until decided, so no skeptic judges it and L4 never commits it:
+`hold.sh out <scratch>/<id>.held.patch <the finding's FILES and TEST>`. When its non-test files
+hold another finding's hunks, hold the whole group. It goes to L2b with "keep the author's line"
+as one option and the fix as the other, and is decided by what the `DECISION` keeps, not by
+`CHANGE` alone:
+
+- **the fix stands** → `hold.sh in` the patch next round and it goes through L3 again, the lines
+  this decision names now covered. The fixer's next prompt quotes them in the **Decided** line, so
+  they stay covered. The report shows `changes the author's line`.
+- **the author's line stays, and the defect still needs fixing** (`CHANGE: needed`) → discard the
+  patch; back to `open` with "keep the author's line" in its **Decided** line.
+- **the author's line stays, and the defect is acceptable** (`CHANGE: none`) → discard the patch;
+  `ruled-fine`.
+
 ### L0. Preflight
 
 Under `/pr-review loop` it already ran at step 1: go to L1. Chosen at step 8: read
@@ -55,6 +92,8 @@ loop's git work, from the repo root:
 - `bash <skill dir>/scripts/authors-lines.sh <fixed-point> <start> <rev> [<to>] -- <files…>` prints
   every line the change removes or rewrites that the PR's author wrote, with its blame. Nothing
   printed means none. `<fixed-point>` is always the PR's, from step 1.
+- `bash <skill dir>/scripts/tree-id.sh [<rev>]` prints the tree id of the working tree, new files
+  included, or of `<rev>`. Equal ids are identical trees.
 
 ### L1. Set up the ledger
 
@@ -137,42 +176,23 @@ test-driven: treat it as `failed`, with that as the reason. `needs-decision` →
 
 Two more fields, checked before L3:
 
-- **`REVERSES` is not `none`** → the fix undid a line the author wrote. It is **held**, and goes to
-  L2b with "keep the author's line" as one option and the fix as the other — unless every line it
-  lists is **covered**.
+- **`REVERSES` is not `none`** → held, as **The author's lines** says, unless every line it lists
+  is covered.
 - **`COUNTERPART: not checked`** on a fix that crosses a boundary, while the review had a
   counterpart → `failed`, with "the other system's handling was not read" as the reason. Without a
   counterpart at all, carry it as `counterpart unchecked` into the ledger and the report.
-
-**Covered** lines need no decision, and only these count:
-
-- the finding's own `Where` line, when what the finding says is wrong is that line's text — a false
-  sentence, a wrong value;
-- a line the finding's **Decided** line names;
-- a carrier edit, where the author's line survives word for word in the new code — a trailing comma
-  for an added argument, an expression moved unchanged into a variable.
-
-Anything else is held, even when the decision seems to imply it. "Implied" is where a fix slips
-past its decision: a line the decision does not name, rewritten in a way the decision did not say,
-is a new choice.
 
 ### L2b. Decide
 
 Only when something is waiting on a choice:
 
 - a fixer returned `needs-decision`;
-- a fix is **held** because it changes a line the author wrote — its `REVERSES`, L3's author's-lines
-  check, or an L3 skeptic's `CORRECTION` naming a decision it undoes;
+- a fix is **held** (**The author's lines**);
 - an L3 skeptic left a fix unsettled.
 
 The first two from this round's fixers run now; anything L3 raised runs in the next round's L2b.
 All the fixers have returned by then, so the tree is quiet and a decider's probe cannot collide
 with an edit.
-
-**A held fix is out of the tree until it is decided**, so no skeptic judges it and L4 never
-commits it: `hold.sh out <scratch>/<id>.held.patch <the finding's FILES and TEST>`, and
-`hold.sh in` the same patch to put it back. When its non-test files hold another finding's hunks
-too, hold the whole group, as L3's red check does.
 
 Spawn one `pr-review-decider` per question, **all in a single message**, with
 [decide.md](./decide.md)'s prompt: the question is the fixer's `NOTE`, the competing shapes are its
@@ -186,21 +206,8 @@ Spawn one `pr-review-decider` per question, **all in a single message**, with
 - **escalate** → `escalated`. Check it against the bar exactly as decide.md says, then set it aside.
   The loop goes on without it.
 
-**A held fix is decided by what the decision keeps, not by `CHANGE` alone.** Read its `DECISION`:
-
-- **the fix stands** → `git apply` the held patch next round, and it goes through L3 again with the
-  reversal accepted: the author's-lines check treats the lines this decision names as covered, so it
-  is not held twice for the same line; the skeptic still sees them, marked covered. The fixer's next
-  prompt quotes those lines in the **Decided** line, so they stay covered. The report shows it as
-  `changes the author's line`.
-- **the author's line stays, and the defect still needs fixing** (`CHANGE: needed`) → discard the
-  patch; the finding goes back to `open` with "keep the author's line" in its **Decided** line, so
-  the next fixer works inside it.
-- **the author's line stays, and the defect is acceptable** (`CHANGE: none`) → discard the patch;
-  `ruled-fine`.
-
-A finding a fixer sends back to L2b a second time, after it already had a decision, is `stuck`: the
-decision did not make it fixable.
+A held fix's decision applies as **The author's lines** says. A finding a fixer sends back to L2b
+a second time, after it already had a decision, is `stuck`: the decision did not make it fixable.
 
 **At the round cap**, a decision that needs another round to apply — `CHANGE: needed`, or a held
 fix that stands — leaves the finding `open`, carrying its **Decided** line, for the report.
@@ -233,20 +240,20 @@ group's tests to fail. `hold.sh in` failing is failure-modes' "patch does not re
 finding, `authors-lines.sh <fixed-point> <start> HEAD -- <the finding's non-test FILES>` — the fix
 is not committed yet, so its old side is `HEAD`.
 
-Any line that comes back and is not in the fixer's `REVERSES` → treat the return as if it had listed
-it: the fix is held, as L2b says, unless the line is covered (L2). Covered lines still go into the
-skeptic's prompt below, each marked with what covers it, so the skeptic judges the rewrite against
-the decision rather than taking it on trust. A fix that is not held and covers nothing changed none
-of the author's lines, so the prompt says "none" for it.
+A line it prints that the fixer's `REVERSES` left out counts the same: held unless covered.
 
 **Machine next.** Run the repo's build and the full test suite, filtered, exactly as step 2 does.
 Fixers ran the narrow checks; this is the one that catches a fix in one group breaking another.
+When it is green, record in the ledger the tree it ran on — `machine green at tree
+$(bash <skill dir>/scripts/tree-id.sh)` — its filtered totals, and for each fixed finding's `TEST`
+the line from that run showing it passed (grep its name from the runner's verbose or list output;
+the totals alone do not name it). Verify reuses this when nothing has changed since.
 
 A failure is a finding of its own, needs no skeptic, and joins the next round's fix list with the
 failing line as its `Repro` — the failing test is already its red, so its fixer goes straight to
 green. Do not commit a red tree as if it were a round — go straight back to L2 with it. At the round
 cap there is no next round: find the group whose fix turns it red (take groups out one at a time,
-as the red check does), hold that group's fix out of the tree as L2b does, and report the failure
+as the red check does), take that group's fix out with `hold.sh out`, and report the failure
 under **Change before merge**.
 
 **Then one skeptic per fixed finding**, all in a single message. Reuse `pr-review-verifier` — it
@@ -279,8 +286,7 @@ stands:
 Apply the verdicts:
 
 - **refuted, with `WHY` naming a line in the change** → `fixed` — unless `CORRECTION` names a
-  decision the change undoes: then the fix is held, as L2b says, with "keep the author's decision"
-  as an option.
+  decision the change undoes: then the fix is held, with "keep the author's decision" as an option.
 - **refuted for another reason** → `fixed` is not earned; the original finding was wrong or the fix
   is incidental. Mark it `fixed`, but log the `CORRECTION` in the discarded file so the next round's
   finders look at that code fresh.
@@ -336,8 +342,8 @@ instead of rebuilding them. A round small enough for step 1's inline path still 
 commits against the stated intent and the decisions list yourself, and run
 `authors-lines.sh <fixed-point> <start> <round-k-base> <round-k-head> -- <the round's files>`.
 Keep `<fixed-point>` the PR's: the re-review's own fixed point would put every line the author wrote
-outside the range, and the check would come back empty. A line already ruled covered, or already
-decided, in L3 is not raised again here. A small diff is where a reversed decision hides best. Add
+outside the range, and the check would come back empty. A small diff is where a reversed decision
+hides best. Add
 one thing to every finder's prompt, under **Already raised**: every ledger entry for its files, with
 its state, so nobody re-reports a fixed finding as new or rediscovers an `adjacent` one.
 

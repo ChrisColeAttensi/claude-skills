@@ -26,7 +26,16 @@ fails the step, and the agents would read a tree about to change.
 ## V1. The machine, whole
 
 The repo's full build, full suite and analyzers, filtered exactly as step 2 does — never a fixer's
-narrowed command. Then check two things in the output:
+narrowed command.
+
+**Already run on this exact tree** → reuse it. When the ledger's last `machine green at tree <id>`
+equals `bash <skill dir>/scripts/tree-id.sh <final>`, L3 ran this whole check on the tree you are
+verifying: check its recorded totals and fix-test lines below instead of running it again, and say
+`V1 (reused from L3)` in the facts row. A fix test with no recorded line is checked by running it
+alone. Any other id — a file left out of the commit, a fix reverted after L3, a
+later round — runs it fresh.
+
+Then check two things in the output:
 
 - **Every fix's regression test ran and passed.** They are in the suite, so this costs nothing
   extra; it catches a later fix quietly undoing an earlier one. A fix test that did not run at all

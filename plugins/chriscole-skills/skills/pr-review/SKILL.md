@@ -374,26 +374,9 @@ Finish this sentence for each finding, out loud, before it goes in the report:
 
 > **`____` hits this by `____`, and then `____`.**
 
-The first blank takes a person, or something a person later depends on — a user, an operator, the next developer, a saved record, an attacker. Not "a caller", not "the code". Somebody has to be on the other end of it.
+The first blank takes a person, or something a person later depends on — a user on a path the product offers, an operator during a deploy or rollback, the next developer misled by the API, a record written wrong now and read later, an attacker. Not "a caller", not "the code".
 
-Keep it when the sentence completes:
-
-- a user reaches it on a path the product offers, with data the product produces
-- an operator reaches it during a deploy, a migration, a restart, a rollback
-- the next developer reaches it — the API misleads, the type lies, the invariant is not where the name says it is
-- a record is written wrong now and read wrong later, whether or not anybody has noticed
-- an attacker reaches it, and an attacker is a person who is looking
-
-Drop it when the sentence does not complete. Count it into the discarded file with the blank you could not fill. The usual shapes:
-
-| Looks like a defect | Why nobody meets it |
-|---|---|
-| a fault behind a caller that does not exist | nothing calls it that way, and nothing is going to |
-| a null the types already forbid | the compiler is the guard |
-| a state transition no flow produces | the machine cannot get there from any screen |
-| a race on a single-threaded path | there is no second thread |
-| handling for an error this call cannot raise | the call has one failure mode and this is not it |
-| a dev-only or debugger-only path | no shipped configuration runs it |
+Drop it when the sentence does not complete — usually a caller that does not exist, a null the types forbid, a state no flow produces, a dev-only path. Count it into the discarded file with the blank you could not fill.
 
 **Rarity is not the test — reach times consequence is.** A path one customer takes once a year, that silently corrupts their data, is worth the report. A path every user takes every session, whose worst outcome is a redundant log line, is not. Judge the pair, never the frequency alone.
 
