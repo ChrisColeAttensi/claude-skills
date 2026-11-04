@@ -50,7 +50,7 @@ the app. Then:
 - **Never click through a certificate warning** in the user's Chrome. It is their browser and
   their trust decision; stop, and point them at the profile's setup for a trusted cert.
 - **Stop the server when the review is done with it** — after step 6b, not after the premise
-  check. The preview tool cleans up after itself; a background command does not.
+  check; when the fix loop runs, after its verify (loop.md L7) instead. The preview tool cleans up after itself; a background command does not.
 
 The profile owns the specifics — which script, which port to prefer, how its cert gets trusted.
 

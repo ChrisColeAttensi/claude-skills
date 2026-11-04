@@ -1,4 +1,4 @@
-# Step 9 — verify the PR as it now stands
+# Loop step L7 — verify the PR as it now stands
 
 Each fix was checked alone. The PR the user ships is all of them at once, and that is where it
 breaks: fix A passes, fix B passes, and together they stop the feature working. **Green describes
@@ -16,8 +16,8 @@ git rev-parse HEAD            # <final>
 ```
 
 A loop that stopped can leave uncommitted hunks behind: `git stash push -u` them first, and
-`git stash pop` after. `<start>` is the SHA before the first fix — the loop's preflight records it;
-for a single review it is `HEAD` when step 8 began.
+`git stash pop` after. `<start>` is the SHA before the first fix — the loop's preflight (L0)
+records it.
 
 **Spend it in order of cost.** V1 is a shell run; V2 and V3 are agents and run only when they can
 find something V1 cannot. Spawn V2 and V3 in one message, after V1 is green — a red V1 already
@@ -36,7 +36,9 @@ narrowed command. Then check two things in the output:
 Only when something is red: tell whether the fixes caused it. When step 2 has the local result in
 `<scratch>/pr-<n>-baseline.txt`, compare. When step 2 took CI's word, run the failing tests alone at
 `<start>` — not the whole suite. Passed at `<start>`, fails now → a fix broke it. That is the
-headline failure of this step.
+headline failure of this step. Red at the baseline or at `<start>` too → the fixes did not cause
+it: it is an open finding the ledger already holds, reported under **Change before merge**, and it
+does not fail verify — but the verdict stays **Request changes** while it is red.
 
 A test that fails once and passes on one rerun is flaky: name it in the report, it does not fail
 the step. Twice is not flaky.
@@ -45,12 +47,8 @@ the step. Twice is not flaky.
 
 One `pr-review-finder` over the cumulative fix diff, `<start>..<final>`. Never inline — the session
 that made the fixes is the worst judge of them. Runs only when the fixes have a way to collide that
-nobody has read:
-
-- **single review** — two or more fix commits, or one fix that edited a non-test file other than
-  its finding's own. One contained fix was already proven by its test and V1.
-- **the loop** — two or more rounds committed, on the first verify only. One round's commit was
-  re-reviewed whole in step 5; a round started by a verify failure is re-reviewed there too.
+nobody has read: **two or more rounds committed**, on the first verify only. One round's commits
+were re-reviewed together in L5; a round started by a verify failure is re-reviewed there too.
 
 Write the diff to `<scratch>/pr-<n>-fixes.diff`. The prompt is short on purpose — the fixes are
 small, and step 5's full paste would cost more than the reading:
@@ -96,15 +94,28 @@ anything pushed. Facts row: `🔬 verify **passed** at <final short sha>`, with 
 **Fails** → nothing is pushed, the verdict is not Approve, and every failure is reported like any
 finding, effect first, so the user sees what the fix broke. Then:
 
-- **The loop** — each failure becomes a finding, `V<k>-1`, `V<k>-2`, …, `open`, its failing line or
-  the skeptic's `REPRO` as its Repro. A V1 failure is its own red, as loop step 3 says. Back to loop
-  step 2; the round cap still holds.
-- **A single review** — it does not loop. Each fix is its own commit (step 8), so find the cause
-  with the failing check alone: `git revert --no-commit <fix sha>`, rerun it, `git reset --hard
-  <final>`; one fix at a time. The fix whose removal turns it green is the cause. Revert it for
-  good, put its finding back in **Change before merge** with `↳ fix reverted: <what it broke>`, and
-  rerun **V1 only** on the new `<final>` — removing a fix cannot create what V2 or V3 look for. No
-  single fix is the cause → the fixes interact; see failure-modes.
+- **Rounds left** — each failure becomes a finding, `V<k>-1`, `V<k>-2`, …, `open`, its failing line
+  or the skeptic's `REPRO` as its Repro. A V1 failure is its own red, as loop L3 says. Back to loop
+  L2; the round cap still holds.
+- **No round left** — the cap is reached, or the loop stopped. See below.
+
+## No round left
+
+Each fixer group is its own commit (L4), so find the cause with the failing check alone:
+`git revert --no-commit <group sha>`, rerun it, `git reset --hard <final>`; one group at a time,
+newest first. The group whose removal turns it green is the cause. Do this for each failing check
+the fixes caused, not only the first.
+
+**Report only — revert nothing the user has not seen.** Each cause goes in the report under
+**Change before merge**, naming its commit and what it broke; its findings go back to `open`. The
+verdict says the loop's own commits broke something, and loop.md L8's question asks whether to
+revert them. On a yes, `git revert <group sha>` — a new commit, so nothing is lost — mark the
+findings `↳ fix reverted: <what it broke>`, and rerun **V1 only** on the new `<final>`: removing a
+fix cannot create what V2 or V3 look for. No single group is the cause → the fixes interact; see
+failure-modes.
+
+A stopped loop that leaves the tree no worse than `<start>` is still not green: the verdict is
+**Request changes**, naming what is left.
 
 Never push a tree that failed verify, and never call it green. A reverted fix and an honest
 **Request changes** costs an afternoon; a broken main costs a week.

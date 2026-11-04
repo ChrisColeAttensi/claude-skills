@@ -1,6 +1,6 @@
 {
   "name": "chriscole-skills",
-  "description": "Chris Cole's personal skills. Currently: pr-review and pr-review-loop, plus the subagents they spawn.",
+  "description": "Chris Cole's personal skills. Currently: pr-review (with its fix loop), plus the subagents it spawns.",
   "version": "1.14.0",
   "author": {
     "name": "Chris Cole"

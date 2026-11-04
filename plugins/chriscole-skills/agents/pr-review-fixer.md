@@ -1,6 +1,6 @@
 ---
 name: pr-review-fixer
-description: The fix pass for the pr-review-loop skill. Takes one group of confirmed review findings that share files, writes a test that fails on each one, makes the smallest change that turns it green, runs the checks that cover it, and reports per finding. Spawned by /pr-review-loop; not useful on its own.
+description: The fix pass for the pr-review skill's fix loop. Takes one group of confirmed review findings that share files, writes a test that fails on each one, makes the smallest change that turns it green, runs the checks that cover it, and reports per finding. Spawned by /pr-review; not useful on its own.
 model: opus
 effort: medium
 color: green

@@ -1,6 +1,7 @@
 ---
 name: pr-review
-description: Review a PR the cheap way round — machine facts first, then the repo's own written rules, then one risk-first reading of the diff, then a skeptic per finding — and report only the defects that survive being argued with and that somebody will actually meet.
+description: Review a PR the cheap way round — machine facts first, then the repo's own written rules, then one risk-first reading of the diff, then a skeptic per finding — and report only the defects that survive being argued with and that somebody will actually meet. Then comment, or fix test-first and re-review; `/pr-review loop` fixes round after round, unattended, until the review comes back clean and the whole PR verifies green.
+argument-hint: "[loop] [PR number, URL, branch or SHA]"
 disable-model-invocation: true
 model: opus
 ---
@@ -20,8 +21,10 @@ model: opus
 | 6b | Try the findings in the running app — only after a live check was approved | one agent |
 | 6c | **Decide** — settle or decide every open question, escalate only what must be | agents, one per question |
 | 7 | Rule on intent and on reach, then report | main session |
-| 8 | Fix or comment | main session |
-| 9 | **Verify** — the whole PR, after any fix; nothing is green until it passes | main session + agents |
+| 8 | Comment, or **fix** — the loop: fix test-first, prove, re-review, then **verify** the whole PR; nothing is green until verify passes | main session + agents |
+
+**`/pr-review loop`** runs the same steps unattended: every question is asked up front, and step 8
+goes straight into the loop, round after round, until green or stuck.
 
 ## Why it is built this way
 
@@ -42,7 +45,7 @@ Hence **finders split by area, and a skeptic per finding**. A clean PR costs lit
 
 ## Process
 
-**Models.** This skill and its three agents default to the latest Opus (`model: opus` in their frontmatter), whatever model the session runs on. Leave the `Agent` tool's `model` argument off every spawn. Pass it only when the invoker named a model for this review ("run it on Sonnet"), and then pass that model on every spawn, not a subset.
+**Models.** This skill and its agents default to the latest Opus (`model: opus` in their frontmatter), whatever model the session runs on. Leave the `Agent` tool's `model` argument off every spawn. Pass it only when the invoker named a model for this review ("run it on Sonnet"), and then pass that model on every spawn, not a subset.
 
 Steps 0 to 4 are cheap and run in the main session. Spend the budget on 5 and 6.
 
@@ -96,7 +99,8 @@ A pass that fires produces one of two things:
 **A pass the profile marks `ask-first` is a question to the user, before it runs.** Say what it
 would do, what it would cost, and what it would tell you that the diff alone cannot. Then wait.
 If the user declines, that is a fact for the report — one line saying the pass was offered and
-skipped — not a silence.
+skipped — not a silence. Under `/pr-review loop`, loop.md L0 already asked it, and the live-check
+ask below: use those answers and ask nothing here.
 
 **A pass that stands the app up and uses it — a live check — runs in `pr-review-live-checker`,
 not here.** Some PRs cannot be reviewed from the diff: the code is right line by line and the
@@ -117,6 +121,7 @@ the change to it like any other file. A PR that relaxes its own review is the th
 
 | Input | How to resolve |
 |---|---|
+| a leading `loop` | strip it, resolve the rest by this table, then read [reference/loop.md](./reference/loop.md) **L0** now and run its preflight before step 2 |
 | a PR number or URL | `gh pr view <n> --json number,url,title,body,state,headRefName,baseRefName,reviews` |
 | nothing, or "this PR" | `gh pr view --json ...` for the current branch; no PR, use the branch |
 | a branch, tag, SHA, `main`, `HEAD~5` | that is the fixed point |
@@ -184,7 +189,7 @@ A compiler error or a failing test is a blocking finding on its own, needs no ve
 Skip this step only when the repo has no build or test command to run. Say so if you skip it.
 
 **Keep the result** — the commands, which tests failed, which warnings fired — in
-`<scratch>/pr-<n>-baseline.txt`. It is the baseline step 9 compares the fixed tree against.
+`<scratch>/pr-<n>-baseline.txt`. It is the baseline the loop's verify compares the fixed tree against.
 
 ### 3. Read the PR into an intent brief
 
@@ -266,7 +271,7 @@ design decision, and it lives in the diff, not the body:
 ```bash
 git diff -U0 <fixed-point>...HEAD | awk '
   /^\+\+\+ / { file = substr($0, 7) }
-  /^\+[^+]/ && tolower($0) ~ /(\/\/|#|--|\/?\*|<!--).*(deliberate|on purpose|intentional|by design|never|always|instead of|rather than|stays|keeps|must not|so that)/ \
+  /^\+[^+]/ && tolower($0) ~ /(\/\/|#|--|\/?\*|<!--).*(deliberate|on purpose|intentional|by design|never|always|instead of|rather than|stays|keeps|must not|so that|so we|we accept|as entered|on the assumption|by choice|we want|we chose)/ \
     { print file ": " substr($0, 2) }' | head -150
 ```
 
@@ -517,20 +522,21 @@ the user sees a "fix it" button for a bug they cannot picture. The report goes o
 finding with all its labelled bullets. A box or a button afterwards carries only step 8's decision,
 never a finding.
 
+**Under `/pr-review loop`, print only the verdict line and the Change before merge titles here**,
+one line each. Nobody decides anything from this report, and loop.md L8 prints the full one for
+the PR as it ends.
+
 ### 8. Fix or comment
 
 Read [reference/deliver.md](./reference/deliver.md) now, and follow it. It rules on fix versus
 comment, on where the fix lands, and on the comment's shape — then records where this review
 reached, so the next one can start here.
 
-### 9. Verify
-
-**Review → fix → verify.** Each fix was checked alone; the PR the user ships is all of them at
-once. Whenever step 8 changed code, read [reference/verify.md](./reference/verify.md) now and
-follow it, before anything is pushed and before the verdict is restated. Only a verify that passes
-makes the verdict **✅ Approve**. A failing one reverts the fix that caused it and says so.
-
-Step 8 only commented: nothing changed, skip this step and say nothing about it.
+**Every code fix runs through [reference/loop.md](./reference/loop.md)** — fix once is one round,
+fix until green runs to the round cap. Invoked as `/pr-review loop`, step 8 asks nothing: go
+straight to loop.md L1. **Review → fix → verify**: the loop ends with
+[reference/verify.md](./reference/verify.md) on the final commit, and only a verify that passes
+makes the verdict **✅ Approve**.
 
 ## When something goes wrong
 
@@ -543,4 +549,6 @@ schema · the PR has no description · the profile names a command or skill that
 a profile pass wants something interactive · 7a dropped every finding · the usage map is empty
 for a changed file · every confirmed finding has a vague `REPRO` · the diff is empty · every
 decider escalates · a decider left the working tree dirty · the user overrules most of the decisions ·
-verify fails and no single fix is the cause · CI goes red after verify passed locally.
+verify fails and no single fix is the cause · CI goes red after verify passed locally · a fixer
+edited a file outside its set · the tree changes mid-loop for a reason the loop did not cause · a
+fix's patch does not re-apply after the red check · every fix is refuted for another reason.

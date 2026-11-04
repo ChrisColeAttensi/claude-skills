@@ -2,6 +2,9 @@
 
 With small findings, a comment is ceremony wrapped around work we could just do.
 
+**Invoked as `/pr-review loop`** → the user already answered at preflight. Ask nothing here: go
+straight to [loop.md](./loop.md) L1, and come back to **Closing** below from its L8.
+
 **Whose branch it is does not enter this decision.** Not the author, not the remote, not whether we can push. Ask only:
 
 - Is every finding a contained edit — a few files, no open design decision?
@@ -24,15 +27,18 @@ echo "$(date +%F) · <TOPIC> · <path> · decided: <decision> · user: <what the
 
 Step 6c feeds that log to every decider, so the next review leans their way. When the log holds three or more overrides on the same topic, all the same way, say so once and offer the line for the repo's profile decision policy — written down, it applies to everyone who reviews this repo, not just this clone.
 
-Recommend one in a sentence, with the reason. Then ask: fix these now, post the comment, or fix and post a short note? Ask about the nearby list separately, and name the tracker if the repo has one.
+Recommend one in a sentence, with the reason. Then ask, in one question:
 
-Where the fix **lands** is a separate question, answered after the user picks — never a reason not to do the work. Editing and running checks is local and reversible on any branch. Push when the branch takes our push and step 9 has passed; otherwise offer `git format-patch`, a branch to pull, or a diff in the comment. Ask before pushing to a branch that is not ours.
+- **fix once** — one round of [loop.md](./loop.md): fix test-first, prove, re-review, verify;
+- **fix until green** — the same, round after round, up to the cap;
+- **post the comment**;
+- or fix once and post a short note at **Closing**.
 
-**On fix** — one finding at a time, run the checks, report per finding what changed. Anything left alone goes into the comment with the reason.
+On fix, the nearby list is asked in loop.md L8's question. On comment, ask about it separately, and name the tracker if the repo has one.
 
-- Record `HEAD` before the first edit as `<start>`. The tree must be clean then too — never sweep the user's unfinished work into a fix commit.
-- **One commit per finding**, its test with it when it has one: `fix(review): <title>`, the repo's convention when it has one. Step 9 reverts a single fix by its commit, so two findings in one commit cannot be told apart.
-- **Then step 9, before anything leaves this machine.** Push, and the "done" line, wait on a verify that passed. A push that goes out first ships a tree nobody has run whole.
+Where the fix **lands** goes in the same question — never a reason not to do the work. Editing and running checks is local and reversible on any branch. Push when the branch takes our push and verify has passed; otherwise offer `git format-patch`, a branch to pull, or a diff in the comment. Ask before pushing to a branch that is not ours.
+
+**On fix** — follow [loop.md](./loop.md) from L0, with the round cap the user picked. Its L8 report replaces the 7d one, and it comes back here for **Closing**. Anything left alone goes into the comment with the reason.
 
 **On comment** — the same plain language, and **the same layout as 7d**, with three changes for the thread:
 
@@ -48,9 +54,10 @@ gh pr comment <number> --body-file <file>
 
 Write the body to a scratch file first, so the markdown survives the shell.
 
-Finally, record where this review reached, so the next one starts here:
+## Closing
+
+Push only what verify passed, as above. Post the comment or short note when one was chosen, after showing the draft — the short note is the L8 report's verdict and Fixed-by-the-loop section, in the comment layout above. Then record where this review reached, so the next one starts here:
 
 ```bash
 git config --local pr-review.last-<pr-number> $(git rev-parse HEAD)
 ```
-

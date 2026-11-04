@@ -13,7 +13,7 @@ Private repo — installing needs a `git` that can clone it (the `gh` credential
 /plugin install chriscole-skills@chriscole
 ```
 
-Then restart Claude Code. `/chriscole-skills:pr-review` and the two subagents it spawns are
+Then restart Claude Code. `/chriscole-skills:pr-review` (and `/chriscole-skills:pr-review loop`) and the subagents it spawns are
 available everywhere, in every repo.
 
 To pick up later changes: `/plugin update chriscole-skills@chriscole`.
@@ -26,9 +26,8 @@ skills go inside this plugin rather than beside it: adding one needs no new inst
 
 | Path | Contents |
 |---|---|
-| `plugins/chriscole-skills/skills/pr-review/` | The `pr-review` skill |
-| `plugins/chriscole-skills/skills/pr-review-loop/` | The `pr-review-loop` skill — runs pr-review, fixes in subagents, proves each fix, re-reviews until clean, then verifies the whole PR before calling it green. Reads pr-review's own files, so the two move together. |
-| `plugins/chriscole-skills/agents/` | `pr-review-finder`, `pr-review-verifier`, `pr-review-live-checker` — the subagents pr-review spawns — `pr-review-decider`, which settles or decides open questions for both skills, and `pr-review-fixer`, which pr-review-loop adds. They move with the skills; the skills are broken without them. |
+| `plugins/chriscole-skills/skills/pr-review/` | The `pr-review` skill. Its fix loop lives in `reference/loop.md`: fix test-first in subagents, prove each fix, re-review, then verify the whole PR before calling it green — one round on "fix", or until green with `/pr-review loop`. |
+| `plugins/chriscole-skills/agents/` | `pr-review-finder`, `pr-review-verifier`, `pr-review-live-checker`, `pr-review-decider` and `pr-review-fixer` — the subagents pr-review spawns. They move with the skill; the skill is broken without them. |
 | `scripts/review-stats.py` | Cost and latency of one `/pr-review` run, read back from its session transcript. Per-agent turns, tokens and minutes. |
 
 ## Editing a skill

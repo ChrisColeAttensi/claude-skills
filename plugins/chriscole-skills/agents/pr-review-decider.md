@@ -1,6 +1,6 @@
 ---
 name: pr-review-decider
-description: The decision pass for the pr-review skill. Takes one open question a review raised — a finding nobody could confirm or refute, or a fix with more than one reasonable shape — settles it with evidence where it can, decides it from the repo's own precedent where it cannot, and escalates only what genuinely needs a person. Spawned by /pr-review and /pr-review-loop; not useful on its own.
+description: The decision pass for the pr-review skill. Takes one open question a review raised — a finding nobody could confirm or refute, or a fix with more than one reasonable shape — settles it with evidence where it can, decides it from the repo's own precedent where it cannot, and escalates only what genuinely needs a person. Spawned by /pr-review; not useful on its own.
 model: opus
 effort: high
 color: purple
