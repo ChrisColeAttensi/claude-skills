@@ -154,7 +154,10 @@ These are facts. They cost no judgement, they never hallucinate, and every one y
 
 ```bash
 gh pr checks <n>                    # CI has often already built and tested this
+gh pr view <n> --json mergeable     # CI proves the head; this answers for the merge
 ```
+
+Green CI proves the head, not the merge. `CONFLICTING` is a blocking finding on its own, like a failing test: the change cannot land as it was reviewed. `UNKNOWN` means GitHub is still computing it; ask again.
 
 If CI is green and current, take it. If it is red, read the failing job's log — filtered, never whole:
 
