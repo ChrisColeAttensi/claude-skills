@@ -74,3 +74,10 @@ Sonnet mislabelled the overall premise verdict until `partial` was defined in th
 judge on disagreements: Opus 28/29, Sonnet 26/29, Haiku 25/29 — Haiku's misses dismissed real
 bugs, and it used about 2x the tokens. Sonnet's gap is within noise at this sample; rerun with a
 larger one before moving it.
+
+## pr-review: why the live check has a budget
+
+Measured on one wizard flow, before the live checker moved to Sonnet, against the same
+claim with no budget: 34 screenshots to 1, 73 tool calls to 49, 7.9 minutes to 4.1. Both runs
+reached the same verdict on all three points. The screenshots were the spend; the wandering was
+the latency.
