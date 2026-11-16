@@ -36,7 +36,7 @@ The author is reading this at the end of their day, on a phone, on a change they
 ## ✅ Approve — <one sentence saying why>
 
 `<fixed-point>` → `HEAD` · **<N>** commits · **<F>** files
-🔨 build **passed** · 🧪 tests **passed** · 📐 tripwires **clear** · 🖥️ live check **passed** (dummy) · 🔌 counterpart **read** (<name>@<version>) · 🔬 verify **passed** at <sha> (V1 V2 V3)
+🔨 build **passed** · 🧪 tests **passed** · 📐 tripwires **clear** · 🖥️ live check **passed** (<mode>) · 🔌 counterpart **read** (<name>@<version>) · 🔬 verify **passed** at <sha> (V1 V2 V3)
 
 ---
 
@@ -100,7 +100,7 @@ Rules for the shape:
 - **Decided for you and Needs your decision are numbered with the findings**, continuing the count, so "overrule 4" is a thing a person can say.
 - **Titles are plain language** — "The drag springs back half the time", not "Non-atomic reorder chain".
 - **`---` between sections only**, never between findings.
-- **The emoji vocabulary is closed**: the template's, plus 🔁 and 🔧 after the fix loop and ⚠️ on a `↳` line flagging an unproved fix. One per heading, none in a finding's sentences.
+- **The emoji vocabulary is closed**: the template's, 🛑 and ❌ as the rules above use them, plus 🔁 and 🔧 after the fix loop and ⚠️ on a `↳` line flagging an unproved fix. One per heading, none in a finding's sentences.
 
 Omit any heading whose list is empty, and its rule with it. A **Worth its own PR** or **Decided for you** list does not hold back an approve; a **Needs your decision** item about this PR's own code does. **Approve** when nothing this PR caused has to change before merge; say what backs it in the same sentence — build green, tests green, tripwires clear. That is a stronger statement than an empty list, and it is the honest one.
 

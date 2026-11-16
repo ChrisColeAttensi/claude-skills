@@ -34,7 +34,7 @@ Recommend one in a sentence, with the reason. Then ask, in one question:
 - **post the comment**;
 - or fix once and post a short note at **Closing**.
 
-On fix, the nearby list is asked in loop.md L8's question. On comment, ask about it separately, and name the tracker if the repo has one.
+On fix, the **Worth its own PR** list is asked in loop.md L8's question. On comment, ask about it separately, and name the tracker if the repo has one.
 
 Where the fix **lands** goes in the same question — never a reason not to do the work. Editing and running checks is local and reversible on any branch. Push when the branch takes our push and verify has passed; otherwise offer `git format-patch`, a branch to pull, or a diff in the comment. Ask before pushing to a branch that is not ours.
 

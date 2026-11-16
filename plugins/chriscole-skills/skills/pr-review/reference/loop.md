@@ -37,8 +37,8 @@ Review → fix → review → fix … → **verify**. The rounds converge; verif
   that clears the decider's bar waits for the user, and even that is set aside rather than stopping
   the loop; the user gets the leftover questions together, once, at the end.
 
-Subagents cannot spawn subagents, so the review and every fan-out run in the main session. Fixing
-and proving are the work that goes to agents.
+The review and every fan-out run in the main session. Fixing and proving are the work that goes
+to agents.
 
 ## The author's lines
 
@@ -82,7 +82,7 @@ as one option and the fix as the other, and is decided by what the `DECISION` ke
 Under `/pr-review loop` it already ran at step 1: go to L1. Chosen at step 8: read
 [loop-preflight.md](./loop-preflight.md) and run its checks, then L1.
 
-**Scripts.** `<skill dir>` is the base directory the skill was loaded from. Two scripts do the
+**Scripts.** `<skill dir>` is the base directory the skill was loaded from. Three scripts do the
 loop's git work, from the repo root:
 
 - `bash <skill dir>/scripts/hold.sh out <patch> <files…>` saves the files' changes to `<patch>` and

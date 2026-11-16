@@ -36,7 +36,7 @@ Ask the machine first — compiler, analyzers, CI, the repo's own docs — for f
 
 ## Process
 
-**Models.** This skill and its agents default to the latest Opus (`model: opus` in their frontmatter), whatever model the session runs on. Leave the `Agent` tool's `model` argument off every spawn. Pass it only when the invoker named a model for this review ("run it on Sonnet"), and then pass that model on every spawn, not a subset.
+**Models.** This skill and its agents pin their model in frontmatter, whatever model the session runs on: the latest Opus (`model: opus`), except `pr-review-live-checker`, which runs on Sonnet. Leave the `Agent` tool's `model` argument off every spawn. Pass it only when the invoker named a model for this review ("run it on Sonnet"), and then pass that model on every spawn, not a subset.
 
 Steps 0 to 4 are cheap and run in the main session. Spend the budget on 5 and 6.
 
@@ -165,7 +165,7 @@ If CI is green and current, take it. If it is red, read the failing job's log �
 gh run view <run-id> --log-failed | tail -80
 ```
 
-If CI has not run, or the branch is local, run what the repo runs. Find the commands in the repo's own docs rather than guessing, and **filter the output** — a build log read whole is one of the fastest ways to waste a context:
+If CI has not run, or the branch is local, run what the repo runs. Find the commands in the repo's own docs rather than guessing, and **filter the output** — a build log read whole is one of the fastest ways to waste a context. In a .NET repo, for example:
 
 ```bash
 dotnet build <solution> -c Debug 2>&1 | grep -E "error|warning" | sort -u | head -40
@@ -226,9 +226,9 @@ One script computes the first three, from the repo root. `<skill dir>` is the ba
 bash <skill dir>/scripts/surroundings.sh <fixed-point> [search root — default: the whole repo]
 ```
 
-**Usage map** — who calls the changed code, plus every use of a newly exported name. The commonest wrong finding is a fault behind a caller that does not exist; the commonest missed one is a caller nobody looked at. Paste it saying plainly what it is: every importer we found, and an empty line means we found none.
+**Usage map** — who calls the changed code, plus every use of a newly exported name. The commonest wrong finding is a fault behind a caller that does not exist; the commonest missed one is a caller nobody looked at. Paste it saying plainly what it is: the importers we found, at most six per file with `(more)` when the list stopped there, and an empty line means we found none. The exported-names section reads ES-module `export` syntax only.
 
-**Omission check** — files that usually change alongside these, and did not. A finder reads the diff, so it cannot see the file that should have been in it. Most entries are noise — a barrel file, a lockfile. One or two are the question worth asking: the mapper not updated, the sibling handling the other half of the enum. It is a prompt for the finder, never a finding on its own. The script skips it over 40 changed files.
+**Omission check** — files that usually change alongside these, and did not. A finder reads the diff, so it cannot see the file that should have been in it. Most entries are noise — a barrel file, a lockfile. One or two are the question worth asking: the mapper not updated, the sibling handling the other half of the enum. It is a prompt for the finder, never a finding on its own. The script reads the history of the first ten changed files, and skips the check over 40.
 
 **Decisions in the code** — added comments that state a choice ("deliberately not retried"). The description says what the PR is for; these say what it chose. Drop hits that are not a choice — a `never` type, a heading — and extend the script's markers or words when the repo's languages or comments need it. A finding that contradicts one is either wrong or a real defect in that decision, and the finder must say which.
 
@@ -268,7 +268,7 @@ The agent definition holds the finder's contract — the bar, the risk order, th
 >  Already raised filtered to this area's paths>
 > ```
 >
-> **Usage map — every importer of your changed files that we found. An empty line means none:**
+> **Usage map — importers of your changed files that we found, at most six each; `(more)` means the list stopped there. An empty line means none:**
 > ```
 > <usage map from step 4b, filtered to your area>
 > ```
@@ -322,7 +322,7 @@ Each prompt carries **one** claim and nothing else — no other findings, no vot
 > <the hunk, plus enough surrounding lines to judge it>
 > ```
 >
-> **Callers of this file that we already found — you do not need to search for them:**
+> **Callers of this file that we already found — search for more only when the line ends in `(more)`:**
 > ```
 > <the relevant lines of the usage map>
 > ```
@@ -333,7 +333,7 @@ Each prompt carries **one** claim and nothing else — no other findings, no vot
 
 Then apply the verdicts, and this is not negotiable — a refuted finding does not go in the report, however plausible it read:
 
-- **confirmed** → it goes in the report. The skeptic's `REPRO` is the evidence, and it carries through to the report's own `Repro` row.
+- **confirmed** → it goes in the report. The skeptic's `REPRO` is the evidence, and it carries through to the report's own `Repro` bullet.
 - **confirmed with no `REPRO`** → treat it as refuted. A skeptic that cannot say what sets the fault off has agreed with the finder rather than tested it, and agreement is the thing this pass exists to replace.
 - **refuted** → dropped. Count it.
 - **unsettled** → step 6c, with what would settle it. Not the report — not yet.
@@ -373,7 +373,7 @@ Three rulings, in order, on every confirmed finding. Then write.
 
 This is the easiest ruling to skip, because a confirmed finding feels finished. It is not. The skeptic only proved the fault is real. This asks a different question: does it ever happen where somebody is standing?
 
-Finish this sentence for each finding, out loud, before it goes in the report:
+Each finding has to complete this sentence before it goes in the report:
 
 > **`____` hits this by `____`, and then `____`.**
 

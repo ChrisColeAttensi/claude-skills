@@ -4,10 +4,6 @@ The medium playbook for a browser-driven live check. The profile says how to sta
 up; this says how to drive any app cheaply once it is up. Paste it into the
 `pr-review-live-checker` prompt.
 
-Measured on one wizard flow, against the same claim with no budget: **34 screenshots to 1**,
-73 tool calls to 49, 7.9 minutes to 4.1. Both runs reached the same verdict on all three points.
-The screenshots were the spend; the wandering was the latency.
-
 ## Two drivers, same rules
 
 Everything below holds for both. The tools differ in name, and every Chrome tool takes a `tabId`:

@@ -16,12 +16,15 @@ skip=(':!*.md' ':!*.css' ':!*.scss' ':!*.lock' ':!*.snap')
 changed=$(git diff --name-only "$fp"...HEAD)
 n=$(printf '%s\n' "$changed" | grep -c . || true)
 
-echo "## Usage map — importers found per changed file; an empty line means none found"
+# At most six per line; a seventh hit means the list was cut.
+cap6() { awk 'NR<=6 { printf "%s ", $0 } NR==7 { printf "(more) " }'; }
+
+echo "## Usage map — importers found per changed file, at most six; (more) means the list stopped there, an empty line means none found"
 printf '%s\n' "$changed" | while read -r f; do
   [ -z "$f" ] && continue
   b=$(basename "$f"); b="${b%.*}"
   printf '%s <- ' "$f"
-  git grep -lw -- "$b" -- "$root" "${skip[@]}" 2>/dev/null | grep -vx "$f" | head -6 | tr '\n' ' '
+  git grep -lw -- "$b" -- "$root" "${skip[@]}" 2>/dev/null | grep -vx "$f" | cap6
   echo
 done
 
@@ -31,18 +34,18 @@ names=$(git diff "$fp"...HEAD | grep '^+' \
 echo
 echo "## Newly exported names — files that use each, outside its own; an empty line means none found"
 if [ -z "$names" ]; then
-  echo "(none)"
+  echo "(none — reads ES-module export syntax only; in other languages, not checked)"
 else
   printf '%s\n' "$names" | while read -r name; do
     printf '%s <- ' "$name"
     git grep -lw -- "$name" -- "$root" "${skip[@]}" 2>/dev/null \
-      | grep -vxF -f <(git grep -lE "export .*\b$name\b" -- "$root" 2>/dev/null) | head -6 | tr '\n' ' '
+      | grep -vxF -f <(git grep -lE "export .*\b$name\b" -- "$root" 2>/dev/null) | cap6
     echo
   done
 fi
 
 echo
-echo "## Normally changes alongside these files, and did not this time"
+echo "## Normally changes alongside these files, and did not this time (history of the first ten changed files)"
 if [ "$n" -gt 40 ]; then
   echo "(skipped: $n files changed, over 40)"
 else
