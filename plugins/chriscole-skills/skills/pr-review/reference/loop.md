@@ -434,8 +434,8 @@ this order:
 An overrule of anything in **Decided for you** or a Fixed-by-the-loop decision is handled like 1,
 and logged as [deliver.md](./deliver.md) says.
 
-Then deliver.md's **Closing**: push if the user chose that **and verify passed** (still ask first
-when the branch is not theirs), post the comment or short note if that was chosen — otherwise offer
+Then deliver.md's **Closing**: push only if **verify passed** — on the user's branch when they said
+yes earlier, with no second ask; on someone else's branch after asking once, there — post the comment or short note if that was chosen — otherwise offer
 it, once — and record `pr-review.last-<n>`. A loop that did not end green never pushes, whatever
 was chosen earlier. After a push, verify.md's **Pushed** section runs: CI on the pushed SHA gets the
 last word, and red CI is a verify failure — one more round if the cap allows, otherwise the verdict

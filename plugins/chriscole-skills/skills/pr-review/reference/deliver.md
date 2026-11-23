@@ -36,7 +36,14 @@ Recommend one in a sentence, with the reason. Then ask, in one question:
 
 On fix, the **Worth its own PR** list is asked in loop.md L8's question. On comment, ask about it separately, and name the tracker if the repo has one.
 
-Where the fix **lands** goes in the same question — never a reason not to do the work. Editing and running checks is local and reversible on any branch. Push when the branch takes our push and verify has passed; otherwise offer `git format-patch`, a branch to pull, or a diff in the comment. Ask before pushing to a branch that is not ours.
+Fixes are always committed locally — editing and running checks is reversible on any branch, so where they land is never a reason not to do the work.
+
+**Whose push.** The branch is the user's when the PR's author is them (`gh pr view <n> --json author --jq .author.login` equals `gh api user --jq .login`), or, with no PR, when it is their local branch.
+
+- **The user's branch** → add to the same question, worded so commits are never in question: "Fixes are always committed locally. Push them automatically once verify passes? (default: no, you push)". A yes is the go-ahead; Closing does not ask again.
+- **Someone else's branch** → don't ask now: a yes here would still need a second ask at Closing, so the first one is noise. Closing asks once, after verify passes.
+
+A branch that won't take our push gets `git format-patch`, a branch to pull, or a diff in the comment instead.
 
 **On fix** — follow [loop.md](./loop.md) from L0, with the round cap the user picked. Its L8 report replaces the 7d one, and it comes back here for **Closing**. Anything left alone goes into the comment with the reason.
 
@@ -56,7 +63,7 @@ Write the body to a scratch file first, so the markdown survives the shell.
 
 ## Closing
 
-Push only what verify passed, as above. Post the comment or short note when one was chosen, after showing the draft — the short note is the L8 report's verdict and Fixed-by-the-loop section, in the comment layout above. Then record where this review reached, so the next one starts here:
+Push only what verify passed. On the user's branch, push if they said yes earlier — without asking again — and leave the commits local if they said no. On someone else's branch, ask once now: "Verify passed. Push the fixes to `<author>`'s branch?". Post the comment or short note when one was chosen, after showing the draft — the short note is the L8 report's verdict and Fixed-by-the-loop section, in the comment layout above. Then record where this review reached, so the next one starts here:
 
 ```bash
 git config --local pr-review.last-<pr-number> $(git rev-parse HEAD)
